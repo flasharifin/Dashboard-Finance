@@ -132,7 +132,7 @@ export default function PortfolioPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form key={editing?.id ?? "new"} onSubmit={handleSubmit} className="space-y-4">
             {/* Exchange selector */}
             <div className="space-y-2">
               <Label>Pasar / Exchange</Label>
