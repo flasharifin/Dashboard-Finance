@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -25,7 +24,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, calcAvgPrice, getUnitLabel, calcUnits, cn } from "@/lib/utils";
-import { Calculator, Plus, Trash2, ToggleLeft, ToggleRight, Pencil } from "lucide-react";
+import { Calculator, Plus, Trash2, ToggleLeft, ToggleRight, Pencil, BookOpen, ListChecks, History } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
 
 const EXCHANGE_BADGE: Record<string, string> = {
@@ -65,6 +64,8 @@ export default function DcaPage() {
   const deletePlanMutation = useDeleteDcaPlan();
   const addTxMutation = useAddDcaTransaction();
   const deleteTxMutation = useDeleteDcaTransaction();
+
+  const [activeTab, setActiveTab] = useState<"calculator" | "plans" | "history">("calculator");
 
   // ── Kalkulator ───────────────────────────────────────────────────
   const [selectedId, setSelectedId] = useState("");
@@ -216,21 +217,45 @@ export default function DcaPage() {
         <p className="text-muted-foreground">Simulasi, rencana, dan histori Dollar Cost Averaging</p>
       </div>
 
-      <Tabs defaultValue="calculator">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="calculator" className="flex-1 sm:flex-none">Kalkulator</TabsTrigger>
-          <TabsTrigger value="plans" className="flex-1 sm:flex-none">
-            Rencana
-            {plans.length > 0 && <Badge className="ml-1.5 h-4 px-1 text-[10px]">{plans.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex-1 sm:flex-none">
-            Histori
-            {transactions.length > 0 && <Badge className="ml-1.5 h-4 px-1 text-[10px]">{transactions.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
+      {/* ── Tab Navigation (underline style) ────────────────────── */}
+      <div className="border-b">
+        <nav className="flex">
+          {([
+            { id: "calculator" as const, label: "Kalkulator", count: 0,                   icon: <Calculator className="h-4 w-4" /> },
+            { id: "plans"      as const, label: "Rencana",    count: plans.length,        icon: <ListChecks className="h-4 w-4" /> },
+            { id: "history"    as const, label: "Histori",    count: transactions.length, icon: <History className="h-4 w-4" /> },
+          ]).map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors select-none",
+                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
+                    active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  )}>
+                    {tab.count}
+                  </span>
+                )}
+                {active && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
         {/* ── TAB: Kalkulator ─────────────────────────────────────── */}
-        <TabsContent value="calculator" className="mt-6">
+        {activeTab === "calculator" && <div className="mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -426,10 +451,10 @@ export default function DcaPage() {
               </Card>
             </div>
           </div>
-        </TabsContent>
+        </div>}
 
         {/* ── TAB: Rencana DCA ─────────────────────────────────────── */}
-        <TabsContent value="plans" className="mt-6 space-y-4">
+        {activeTab === "plans" && <div className="mt-6 space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => setPlanDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />Buat Rencana
@@ -478,10 +503,10 @@ export default function DcaPage() {
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>}
 
         {/* ── TAB: Histori ─────────────────────────────────────────── */}
-        <TabsContent value="history" className="mt-6 space-y-4">
+        {activeTab === "history" && <div className="mt-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             {transactions.length > 0 && (
               <p className="text-sm text-muted-foreground">
@@ -537,8 +562,7 @@ export default function DcaPage() {
               </Table>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>}
 
       {/* ── Dialog: Tambah Rencana ────────────────────────────────── */}
       <Dialog open={planDialog} onOpenChange={setPlanDialog}>
