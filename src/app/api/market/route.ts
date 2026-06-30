@@ -1,41 +1,59 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-const CACHE_TTL = 15 * 60 * 1000; // 15 menit
+const CACHE_TTL = 15 * 60 * 1000;
 
-const priceCache = new Map<string, { price: number; change: number; changePercent: number; fetchedAt: number }>();
+type QuoteCache = {
+  price: number;
+  change: number;
+  changePercent: number;
+  fetchedAt: number;
+};
 
-async function fetchQuote(symbol: string) {
-  const cached = priceCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
-    return cached;
+const priceCache = new Map<string, QuoteCache>();
+
+function buildTicker(symbol: string, exchange: string): string {
+  switch (exchange) {
+    case "IDX":    return `${symbol}.JK`;
+    case "US":     return symbol;
+    case "CRYPTO": return `${symbol}-USD`;
+    default:       return `${symbol}.JK`;
   }
-
-  // Saham IDX: tambahkan suffix .JK untuk Yahoo Finance
-  const ticker = symbol.endsWith(".JK") ? symbol : `${symbol}.JK`;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    next: { revalidate: 0 },
-  });
-
-  if (!res.ok) return null;
-
-  const json = await res.json();
-  const meta = json?.chart?.result?.[0]?.meta;
-  if (!meta) return null;
-
-  const price = meta.regularMarketPrice ?? 0;
-  const prevClose = meta.chartPreviousClose ?? price;
-  const change = price - prevClose;
-  const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-
-  const result = { price, change, changePercent, fetchedAt: Date.now() };
-  priceCache.set(symbol, result);
-  return result;
 }
 
+async function fetchQuote(symbol: string, exchange: string): Promise<QuoteCache | null> {
+  const cacheKey = `${exchange}:${symbol}`;
+  const cached = priceCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) return cached;
+
+  const ticker = buildTicker(symbol, exchange);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const meta = json?.chart?.result?.[0]?.meta;
+    if (!meta) return null;
+
+    const price: number = meta.regularMarketPrice ?? 0;
+    const prevClose: number = meta.chartPreviousClose ?? price;
+    const change = price - prevClose;
+    const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
+
+    const result: QuoteCache = { price, change, changePercent, fetchedAt: Date.now() };
+    priceCache.set(cacheKey, result);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+// Format: ?assets=BBCA:IDX,AAPL:US,BTC:CRYPTO
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -43,20 +61,36 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const symbols = searchParams.get("symbols")?.split(",").filter(Boolean) ?? [];
+  const assetsParam = searchParams.get("assets") ?? "";
+  const pairs = assetsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const [symbol, exchange = "IDX"] = s.split(":");
+      return { symbol, exchange };
+    });
 
-  if (symbols.length === 0) {
-    return NextResponse.json({ error: "symbols parameter required" }, { status: 400 });
+  if (pairs.length === 0) {
+    return NextResponse.json({ error: "assets parameter required" }, { status: 400 });
   }
 
-  const results = await Promise.allSettled(symbols.map((s) => fetchQuote(s)));
+  const results = await Promise.allSettled(
+    pairs.map(({ symbol, exchange }) => fetchQuote(symbol, exchange))
+  );
 
   const data: Record<string, { price: number; change: number; changePercent: number } | null> = {};
-  symbols.forEach((symbol, i) => {
+  pairs.forEach(({ symbol, exchange }, i) => {
+    const key = `${symbol}:${exchange}`;
     const result = results[i];
-    data[symbol] = result.status === "fulfilled" && result.value
-      ? { price: result.value.price, change: result.value.change, changePercent: result.value.changePercent }
-      : null;
+    data[key] =
+      result.status === "fulfilled" && result.value
+        ? {
+            price: result.value.price,
+            change: result.value.change,
+            changePercent: result.value.changePercent,
+          }
+        : null;
   });
 
   return NextResponse.json({ data });

@@ -5,9 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return "Rp 0";
+export function formatCurrency(
+  value: number | string | null | undefined,
+  currency: "IDR" | "USD" = "IDR"
+): string {
+  if (value === null || value === undefined) return currency === "IDR" ? "Rp 0" : "$0";
   const num = typeof value === "string" ? parseFloat(value) : value;
+  if (currency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  }
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
@@ -36,9 +47,10 @@ export function calcAvgPrice(
   newLot: number,
   newPrice: number
 ): number {
-  const totalShares = (currentLot + newLot) * 100;
-  const totalCost = currentLot * 100 * currentAvgPrice + newLot * 100 * newPrice;
-  return totalCost / totalShares;
+  const totalUnits = currentLot + newLot;
+  if (totalUnits === 0) return 0;
+  const totalCost = currentLot * currentAvgPrice + newLot * newPrice;
+  return totalCost / totalUnits;
 }
 
 export function calcDividendYield(dps: number, avgPrice: number): number {
@@ -52,4 +64,24 @@ export function calcNetDps(dps: number, taxPct: number): number {
 
 export function calcReceivedAmount(lot: number, dps: number, taxPct: number): number {
   return lot * 100 * calcNetDps(dps, taxPct);
+}
+
+/** Hitung units berdasarkan exchange (IDX: lot×100, US/CRYPTO: lot×1) */
+export function calcUnits(lot: number, exchange: string): number {
+  return exchange === "IDX" ? lot * 100 : lot;
+}
+
+export function getExchangeLabel(exchange: string): string {
+  const labels: Record<string, string> = {
+    IDX: "IDX",
+    US: "US",
+    CRYPTO: "Crypto",
+  };
+  return labels[exchange] ?? exchange;
+}
+
+export function getUnitLabel(exchange: string): string {
+  if (exchange === "CRYPTO") return "unit";
+  if (exchange === "US") return "shares";
+  return "lot";
 }

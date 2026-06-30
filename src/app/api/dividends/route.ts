@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   }
 
   const receivedAmount = calcReceivedAmount(
-    portfolio.lot,
+    Number(portfolio.lot),
     parsed.data.dps,
     parsed.data.taxPct
   );

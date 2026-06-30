@@ -1,9 +1,11 @@
+export type Exchange = "IDX" | "US" | "CRYPTO";
+export type Currency = "IDR" | "USD";
+
 export type StockQuote = {
   symbol: string;
   price: number;
   change: number;
   changePercent: number;
-  volume?: number;
   updatedAt: string;
 };
 
@@ -12,14 +14,16 @@ export type PortfolioWithCalc = {
   stockCode: string;
   lot: number;
   avgPrice: number;
+  exchange: Exchange;
+  currency: Currency;
   sector: string | null;
   note: string | null;
   marketPrice: number | null;
+  units: number;
   totalCost: number;
   marketValue: number | null;
   unrealizedPnl: number | null;
   unrealizedPnlPct: number | null;
-  shares: number;
 };
 
 export type DividendWithCalc = {
@@ -30,6 +34,7 @@ export type DividendWithCalc = {
   netDps: number;
   dividendYield: number;
   receivedAmount: number;
+  currency: Currency;
   cumDate: string | null;
   exDate: string | null;
   paymentDate: string | null;
@@ -42,10 +47,11 @@ export type NetWorthSummary = {
   netValue: number;
 };
 
-export type ApiResponse<T> = {
-  data: T;
-  error?: never;
-} | {
-  data?: never;
-  error: string;
+export type ExchangeRate = {
+  USDIDR: number;
+  updatedAt: string;
 };
+
+export type ApiResponse<T> =
+  | { data: T; error?: never }
+  | { data?: never; error: string };

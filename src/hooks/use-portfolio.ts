@@ -1,35 +1,56 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { PortfolioWithCalc } from "@/types";
+import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
+import { calcUnits } from "@/lib/utils";
+
+type RawPortfolio = {
+  id: string;
+  stockCode: string;
+  lot: number | string;
+  avgPrice: number | string;
+  exchange: Exchange;
+  currency: Currency;
+  sector: string | null;
+  note: string | null;
+};
 
 async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
-  const [portfolioRes, marketRes] = await Promise.all([
-    fetch("/api/portfolio").then((r) => r.json()),
-    fetch("/api/portfolio")
-      .then((r) => r.json())
-      .then((data) => {
-        const codes = data.data?.map((p: { stockCode: string }) => p.stockCode).join(",");
-        if (!codes) return { data: {} };
-        return fetch(`/api/market?symbols=${codes}`).then((r) => r.json());
-      }),
-  ]);
+  const portfolioRes = await fetch("/api/portfolio").then((r) => r.json());
+  const portfolios: RawPortfolio[] = portfolioRes.data ?? [];
 
-  const portfolios = portfolioRes.data ?? [];
-  const prices = marketRes.data ?? {};
+  if (portfolios.length === 0) return [];
 
-  return portfolios.map((p: { id: string; stockCode: string; lot: number; avgPrice: number | string; sector: string | null; note: string | null }) => {
+  // Build assets param: BBCA:IDX,AAPL:US,BTC:CRYPTO
+  const assetsParam = portfolios
+    .map((p) => `${p.stockCode}:${p.exchange}`)
+    .join(",");
+
+  const marketRes = await fetch(`/api/market?assets=${assetsParam}`).then((r) => r.json());
+  const prices: Record<string, { price: number; change: number; changePercent: number } | null> =
+    marketRes.data ?? {};
+
+  return portfolios.map((p) => {
+    const lot = Number(p.lot);
     const avgPrice = Number(p.avgPrice);
-    const marketData = prices[p.stockCode];
+    const units = calcUnits(lot, p.exchange);
+    const totalCost = units * avgPrice;
+
+    const marketData = prices[`${p.stockCode}:${p.exchange}`];
     const marketPrice = marketData?.price ?? null;
-    const shares = p.lot * 100;
-    const totalCost = shares * avgPrice;
-    const marketValue = marketPrice !== null ? shares * marketPrice : null;
+    const marketValue = marketPrice !== null ? units * marketPrice : null;
     const unrealizedPnl = marketValue !== null ? marketValue - totalCost : null;
-    const unrealizedPnlPct = unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
+    const unrealizedPnlPct =
+      unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
 
     return {
-      ...p,
+      id: p.id,
+      stockCode: p.stockCode,
+      lot,
       avgPrice,
-      shares,
+      exchange: p.exchange,
+      currency: p.currency,
+      sector: p.sector,
+      note: p.note,
+      units,
       totalCost,
       marketPrice,
       marketValue,

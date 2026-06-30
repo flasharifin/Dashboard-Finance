@@ -70,8 +70,10 @@ model Portfolio {
   id        String   @id @default(cuid())
   userId    String
   stockCode String
-  lot       Int
-  avgPrice  Decimal  @db.Decimal(15, 2)
+  lot       Decimal  @db.Decimal(15, 4)
+  avgPrice  Decimal  @db.Decimal(15, 4)
+  exchange  String   @default("IDX")
+  currency  String   @default("IDR")
   sector    String?
   note      String?
   createdAt DateTime @default(now())

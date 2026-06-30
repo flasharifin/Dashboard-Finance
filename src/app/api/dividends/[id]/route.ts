@@ -38,7 +38,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const receivedAmount = calcReceivedAmount(
-    existing.portfolio.lot,
+    Number(existing.portfolio.lot),
     parsed.data.dps,
     parsed.data.taxPct
   );

@@ -1,46 +1,74 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatPercent } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Wallet, BarChart3 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign } from "lucide-react";
+import type { PortfolioWithCalc } from "@/types";
 
 type Props = {
-  totalCost: number;
-  marketValue: number;
-  unrealizedPnl: number;
-  unrealizedPnlPct: number;
-  totalPositions: number;
+  portfolios: PortfolioWithCalc[];
+  usdToIdr: number;
 };
 
-export function PortfolioSummaryCards({
-  totalCost,
-  marketValue,
-  unrealizedPnl,
-  unrealizedPnlPct,
-  totalPositions,
-}: Props) {
-  const isProfit = unrealizedPnl >= 0;
+export function PortfolioSummaryCards({ portfolios, usdToIdr }: Props) {
+  const idrPortfolios = portfolios.filter((p) => p.currency === "IDR");
+  const usdPortfolios = portfolios.filter((p) => p.currency === "USD");
+
+  const totalCostIDR = idrPortfolios.reduce((s, p) => s + p.totalCost, 0);
+  const totalCostUSD = usdPortfolios.reduce((s, p) => s + p.totalCost, 0);
+
+  const marketValueIDR = idrPortfolios.reduce(
+    (s, p) => s + (p.marketValue ?? p.totalCost),
+    0
+  );
+  const marketValueUSD = usdPortfolios.reduce(
+    (s, p) => s + (p.marketValue ?? p.totalCost),
+    0
+  );
+
+  const pnlIDR = idrPortfolios.reduce((s, p) => s + (p.unrealizedPnl ?? 0), 0);
+  const pnlUSD = usdPortfolios.reduce((s, p) => s + (p.unrealizedPnl ?? 0), 0);
+
+  // Total dalam IDR (konversi USD → IDR)
+  const totalCostAll = totalCostIDR + totalCostUSD * usdToIdr;
+  const unrealizedPnlAll = pnlIDR + pnlUSD * usdToIdr;
+  const unrealizedPnlPct =
+    totalCostAll > 0 ? (unrealizedPnlAll / totalCostAll) * 100 : 0;
+  const isProfit = unrealizedPnlAll >= 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Total Modal</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Total Modal (IDR)
+          </CardTitle>
           <Wallet className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(totalCostIDR, "IDR")}</p>
+          {totalCostUSD > 0 && (
+            <p className="text-xs text-muted-foreground">
+              + {formatCurrency(totalCostUSD, "USD")} USD
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Nilai Pasar</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Nilai Pasar (IDR)
+          </CardTitle>
           <BarChart3 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(marketValue)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(marketValueIDR, "IDR")}</p>
+          {marketValueUSD > 0 && (
+            <p className="text-xs text-muted-foreground">
+              + {formatCurrency(marketValueUSD, "USD")} USD
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -56,11 +84,12 @@ export function PortfolioSummaryCards({
           )}
         </CardHeader>
         <CardContent>
-          <p className={cn("text-2xl font-bold", isProfit ? "text-emerald-600" : "text-red-600")}>
-            {formatCurrency(unrealizedPnl)}
+          <p className={cn("text-xl font-bold", isProfit ? "text-emerald-600" : "text-red-600")}>
+            {formatCurrency(unrealizedPnlAll, "IDR")}
           </p>
           <p className={cn("text-xs", isProfit ? "text-emerald-600" : "text-red-600")}>
             {formatPercent(unrealizedPnlPct)}
+            {pnlUSD !== 0 && ` · ${formatCurrency(pnlUSD, "USD")}`}
           </p>
         </CardContent>
       </Card>
@@ -68,13 +97,15 @@ export function PortfolioSummaryCards({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Total Emiten
+            Kurs USD/IDR
           </CardTitle>
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{totalPositions}</p>
-          <p className="text-xs text-muted-foreground">posisi aktif</p>
+          <p className="text-2xl font-bold">{formatCurrency(usdToIdr, "IDR")}</p>
+          <p className="text-xs text-muted-foreground">
+            {portfolios.length} posisi aktif
+          </p>
         </CardContent>
       </Card>
     </div>
