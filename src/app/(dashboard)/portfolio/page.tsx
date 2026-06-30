@@ -197,7 +197,7 @@ export default function PortfolioPage() {
                   name="lot"
                   type="number"
                   min="0.00000001"
-                  step={exchange === "CRYPTO" ? "0.00000001" : "1"}
+                  step={exchange === "IDX" ? "1" : "0.00000001"}
                   defaultValue={editing?.lot}
                   required
                 />
@@ -237,7 +237,7 @@ export default function PortfolioPage() {
                     </Label>
                     <Input
                       type="number"
-                      step={exchange === "CRYPTO" ? "0.00000001" : "1"}
+                      step={exchange === "IDX" ? "1" : "0.00000001"}
                       value={simNewLot}
                       onChange={(e) => setSimNewLot(e.target.value)}
                       placeholder={exchange === "IDX" ? "10" : "5"}
