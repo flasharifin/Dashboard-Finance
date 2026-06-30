@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Download } from "lucide-react";
 import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
-import { calcAvgPrice, formatCurrency, getUnitLabel, exportToCSV } from "@/lib/utils";
+import { calcAvgPrice, formatCurrency, getUnitLabel, exportToCSV, cn } from "@/lib/utils";
 
 const EXCHANGE_OPTIONS: { value: Exchange; label: string; currency: Currency; hint: string }[] = [
   { value: "IDX", label: "IDX (Bursa Indonesia)", currency: "IDR", hint: "Contoh: BBCA, TLKM, GOTO" },
@@ -48,6 +48,7 @@ export default function PortfolioPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PortfolioWithCalc | null>(null);
   const [exchange, setExchange] = useState<Exchange>("IDX");
+  const [filterExchange, setFilterExchange] = useState<string>("ALL");
   const [simNewLot, setSimNewLot] = useState("");
   const [simNewPrice, setSimNewPrice] = useState("");
   const [formError, setFormError] = useState("");
@@ -151,8 +152,48 @@ export default function PortfolioPage() {
 
       <PortfolioSummaryCards portfolios={portfolios} usdToIdr={usdToIdr} />
 
+      {/* Filter by exchange */}
+      {!isLoading && portfolios.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {(["ALL", "IDX", "US", "CRYPTO"] as const).map((ex) => {
+            const count = ex === "ALL" ? portfolios.length : portfolios.filter((p: PortfolioWithCalc) => p.exchange === ex).length;
+            if (ex !== "ALL" && count === 0) return null;
+            const active = filterExchange === ex;
+            const colorMap: Record<string, string> = {
+              IDX: "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100",
+              US: "border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100",
+              CRYPTO: "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100",
+            };
+            return (
+              <button
+                key={ex}
+                onClick={() => setFilterExchange(ex)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                  active
+                    ? ex === "ALL"
+                      ? "border-foreground bg-foreground text-background"
+                      : colorMap[ex].replace("hover:", "").replace("bg-", "bg-").split(" ").map(c => c.replace(/^bg-\w+-50$/, c.replace("50", "100"))).join(" ")
+                    : ex === "ALL"
+                    ? "border-muted-foreground/30 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : colorMap[ex] + " opacity-60 hover:opacity-100"
+                )}
+              >
+                {ex === "ALL" ? "Semua" : ex}
+                <span className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                  active && ex !== "ALL" ? "bg-white/60" : "bg-black/10"
+                )}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <PortfolioTable
-        portfolios={portfolios}
+        portfolios={filterExchange === "ALL" ? portfolios : portfolios.filter((p: PortfolioWithCalc) => p.exchange === filterExchange)}
         isLoading={isLoading}
         onEdit={openEdit}
         onDelete={handleDelete}
