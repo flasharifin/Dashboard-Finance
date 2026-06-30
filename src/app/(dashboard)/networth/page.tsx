@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useNetWorth,
   useNetWorthSnapshots,
   useCreateSnapshot,
   useDeleteSnapshot,
   useAddAsset,
+  useUpdateAsset,
   useDeleteAsset,
   useAddLiability,
+  useUpdateLiability,
   useDeleteLiability,
 } from "@/hooks/use-networth";
 import { usePortfolio } from "@/hooks/use-portfolio";
@@ -33,7 +35,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Trash2, Plus, Camera, TrendingUp } from "lucide-react";
+import { Trash2, Plus, Camera, TrendingUp, Pencil } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { PortfolioWithCalc } from "@/types";
 import {
@@ -69,6 +71,10 @@ const EXCHANGE_BADGE: Record<string, string> = {
   CRYPTO: "bg-amber-100 text-amber-700",
 };
 
+type Asset = { id: string; name: string; category: string; value: number | string; note: string | null };
+type Liability = { id: string; name: string; category: string; amount: number | string; note: string | null };
+type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string };
+
 export default function NetWorthPage() {
   const { data: networth, isLoading } = useNetWorth();
   const { data: snapshots = [] } = useNetWorthSnapshots();
@@ -79,27 +85,57 @@ export default function NetWorthPage() {
   const createSnapshotMutation = useCreateSnapshot();
   const deleteSnapshotMutation = useDeleteSnapshot();
   const addAssetMutation = useAddAsset();
+  const updateAssetMutation = useUpdateAsset();
   const deleteAssetMutation = useDeleteAsset();
   const addLiabilityMutation = useAddLiability();
+  const updateLiabilityMutation = useUpdateLiability();
   const deleteLiabilityMutation = useDeleteLiability();
 
+  // Add dialogs
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [liabilityDialogOpen, setLiabilityDialogOpen] = useState(false);
   const [assetCategory, setAssetCategory] = useState("");
   const [liabilityCategory, setLiabilityCategory] = useState("");
 
-  // Nilai portfolio dalam IDR (market price jika ada, fallback ke modal)
+  // Edit dialogs
+  const [editAsset, setEditAsset] = useState<Asset | null>(null);
+  const [editAssetCategory, setEditAssetCategory] = useState("");
+  const [editLiability, setEditLiability] = useState<Liability | null>(null);
+  const [editLiabilityCategory, setEditLiabilityCategory] = useState("");
+
+  // Auto-snapshot tracking (don't create twice in one session)
+  const autoSnapshotDone = useRef(false);
+
+  // Nilai portfolio dalam IDR
   const portfolioValueIDR = portfolios.reduce((sum: number, p: PortfolioWithCalc) => {
     const val = p.marketValue ?? p.totalCost;
     return sum + (p.currency === "IDR" ? val : val * usdToIdr);
   }, 0);
 
-  // Total Aset = porto investasi + aset manual yang diinput
   const manualAssetsTotal = networth?.totalAssets ?? 0;
   const totalAssetsAll = portfolioValueIDR + manualAssetsTotal;
   const totalLiabilities = networth?.totalLiabilities ?? 0;
   const netValue = totalAssetsAll - totalLiabilities;
   const isPositive = netValue >= 0;
+
+  // Auto monthly snapshot: jika belum ada snapshot bulan ini, buat otomatis
+  useEffect(() => {
+    if (autoSnapshotDone.current) return;
+    if (portfolioLoading || !rateData) return;
+    if (createSnapshotMutation.isPending) return;
+
+    const now = new Date();
+    const lastSnapshot = snapshots.length > 0
+      ? new Date((snapshots as Snapshot[])[snapshots.length - 1].snapshotDate)
+      : null;
+
+    // Auto-create jika belum ada snapshot atau snapshot terakhir > 30 hari lalu
+    const shouldCreate = !lastSnapshot || (now.getTime() - lastSnapshot.getTime() > 30 * 24 * 60 * 60 * 1000);
+    if (shouldCreate && portfolioValueIDR >= 0) {
+      autoSnapshotDone.current = true;
+      createSnapshotMutation.mutate(portfolioValueIDR);
+    }
+  }, [snapshots, portfolioLoading, portfolioValueIDR, rateData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,6 +148,20 @@ export default function NetWorthPage() {
     });
     setAssetDialogOpen(false);
     setAssetCategory("");
+  }
+
+  async function handleEditAsset(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editAsset) return;
+    const form = new FormData(e.currentTarget);
+    await updateAssetMutation.mutateAsync({
+      id: editAsset.id,
+      name: form.get("name"),
+      category: editAssetCategory,
+      value: Number(form.get("value")),
+      note: form.get("note") || undefined,
+    });
+    setEditAsset(null);
   }
 
   async function handleAddLiability(e: React.FormEvent<HTMLFormElement>) {
@@ -127,12 +177,21 @@ export default function NetWorthPage() {
     setLiabilityCategory("");
   }
 
-  const chartData = snapshots.map((s: {
-    snapshotDate: string;
-    netValue: number | string;
-    totalAssets: number | string;
-    totalLiabilities: number | string;
-  }) => ({
+  async function handleEditLiability(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editLiability) return;
+    const form = new FormData(e.currentTarget);
+    await updateLiabilityMutation.mutateAsync({
+      id: editLiability.id,
+      name: form.get("name"),
+      category: editLiabilityCategory,
+      amount: Number(form.get("amount")),
+      note: form.get("note") || undefined,
+    });
+    setEditLiability(null);
+  }
+
+  const chartData = (snapshots as Snapshot[]).map((s) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
     "Net Worth": Number(s.netValue),
     Aset: Number(s.totalAssets),
@@ -182,9 +241,7 @@ export default function NetWorthPage() {
             </Card>
             <Card className="border-2 border-primary/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Net Worth (Aset − Hutang)
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Net Worth (Aset − Hutang)</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className={cn("text-2xl font-bold", isPositive ? "text-primary" : "text-red-600")}>
@@ -213,9 +270,7 @@ export default function NetWorthPage() {
                   <YAxis
                     tick={{ fontSize: 11 }}
                     tickFormatter={(v) =>
-                      v >= 1_000_000
-                        ? `${(v / 1_000_000).toFixed(0)}jt`
-                        : `${(v / 1000).toFixed(0)}rb`
+                      v >= 1_000_000 ? `${(v / 1_000_000).toFixed(0)}jt` : `${(v / 1000).toFixed(0)}rb`
                     }
                   />
                   <Tooltip
@@ -229,23 +284,16 @@ export default function NetWorthPage() {
               </ResponsiveContainer>
             )}
 
-            {/* List snapshot dengan tombol hapus */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Riwayat Snapshot</p>
               <div className="divide-y rounded-md border">
-                {[...snapshots].reverse().map((s: {
-                  id: string;
-                  snapshotDate: string;
-                  netValue: number | string;
-                  totalAssets: number | string;
-                  totalLiabilities: number | string;
-                }) => (
+                {[...(snapshots as Snapshot[])].reverse().map((s) => (
                   <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <div>
+                    <div className="min-w-0">
                       <span className="font-medium">
                         {format(new Date(s.snapshotDate), "dd MMM yyyy HH:mm", { locale: idLocale })}
                       </span>
-                      <span className="ml-3 text-muted-foreground">
+                      <span className="ml-3 text-muted-foreground hidden sm:inline">
                         Aset {formatCurrency(Number(s.totalAssets))} · Hutang {formatCurrency(Number(s.totalLiabilities))}
                       </span>
                     </div>
@@ -254,12 +302,9 @@ export default function NetWorthPage() {
                         {formatCurrency(Number(s.netValue))}
                       </span>
                       <Button
-                        size="icon"
-                        variant="ghost"
+                        size="icon" variant="ghost"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm("Hapus snapshot ini?")) deleteSnapshotMutation.mutate(s.id);
-                        }}
+                        onClick={() => { if (confirm("Hapus snapshot ini?")) deleteSnapshotMutation.mutate(s.id); }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -278,14 +323,14 @@ export default function NetWorthPage() {
           <TabsTrigger value="liabilities">Hutang</TabsTrigger>
         </TabsList>
 
+        {/* ── Aset Tab ─────────────────────────────────────────── */}
         <TabsContent value="assets" className="space-y-4 pt-4">
-          {/* === Portofolio Investasi — otomatis dari data portfolio === */}
           <div className="rounded-md border bg-muted/30 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-emerald-600" />
                 <span className="text-sm font-semibold">Portofolio Investasi</span>
-                <span className="text-xs text-muted-foreground">(otomatis dari data porto)</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">(otomatis dari data porto)</span>
               </div>
               <span className="font-semibold text-emerald-600">{formatCurrency(portfolioValueIDR)}</span>
             </div>
@@ -294,37 +339,23 @@ export default function NetWorthPage() {
                 {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
               </div>
             ) : portfolios.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-muted-foreground">
-                Belum ada data portfolio. Tambah aset di menu Portfolio.
-              </p>
+              <p className="px-4 py-4 text-sm text-muted-foreground">Belum ada data portfolio.</p>
             ) : (
               <div className="divide-y">
                 {portfolios.map((p: PortfolioWithCalc) => {
                   const val = p.marketValue ?? p.totalCost;
                   const valIDR = p.currency === "IDR" ? val : val * usdToIdr;
-                  const isMarket = p.marketValue !== null;
                   return (
                     <div key={p.id} className="flex items-center justify-between px-4 py-2.5">
                       <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={cn("text-xs px-1.5 py-0", EXCHANGE_BADGE[p.exchange])}
-                        >
-                          {p.exchange}
-                        </Badge>
+                        <Badge variant="outline" className={cn("text-xs px-1.5 py-0", EXCHANGE_BADGE[p.exchange])}>{p.exchange}</Badge>
                         <span className="text-sm font-medium">{p.stockCode}</span>
-                        {p.sector && (
-                          <span className="text-xs text-muted-foreground">{p.sector}</span>
-                        )}
+                        {p.sector && <span className="text-xs text-muted-foreground hidden sm:inline">{p.sector}</span>}
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold">{formatCurrency(valIDR)}</p>
-                        {p.currency === "USD" && (
-                          <p className="text-xs text-muted-foreground">{formatCurrency(val, "USD")}</p>
-                        )}
-                        {!isMarket && (
-                          <p className="text-xs text-muted-foreground">modal</p>
-                        )}
+                        {p.currency === "USD" && <p className="text-xs text-muted-foreground">{formatCurrency(val, "USD")}</p>}
+                        {p.marketValue === null && <p className="text-xs text-muted-foreground">modal</p>}
                       </div>
                     </div>
                   );
@@ -333,78 +364,64 @@ export default function NetWorthPage() {
             )}
           </div>
 
-          {/* === Aset Manual (kas, properti, reksa dana, dll) === */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-muted-foreground">Aset Lainnya</p>
             <Button size="sm" onClick={() => setAssetDialogOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              Tambah Aset
+              <Plus className="mr-1 h-4 w-4" />Tambah Aset
             </Button>
           </div>
 
-          {(networth?.assets ?? []).map((a: {
-            id: string;
-            name: string;
-            category: string;
-            value: number | string;
-            note: string | null;
-          }) => (
+          {(networth?.assets ?? []).map((a: Asset) => (
             <div key={a.id} className="flex items-center justify-between rounded-md border px-4 py-3">
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">{a.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {ASSET_CATEGORIES.find((c) => c.value === a.category)?.label ?? a.category}
+                  {a.note && ` · ${a.note}`}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0">
                 <p className="font-semibold text-emerald-600">{formatCurrency(Number(a.value))}</p>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => deleteAssetMutation.mutate(a.id)}
-                >
+                <Button size="icon" variant="ghost" className="h-7 w-7"
+                  onClick={() => { setEditAsset(a); setEditAssetCategory(a.category); }}>
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => deleteAssetMutation.mutate(a.id)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
           ))}
           {(networth?.assets ?? []).length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              Belum ada aset lainnya. Tambahkan kas, properti, reksa dana, dll.
-            </p>
+            <p className="py-4 text-center text-sm text-muted-foreground">Belum ada aset lainnya.</p>
           )}
         </TabsContent>
 
+        {/* ── Hutang Tab ───────────────────────────────────────── */}
         <TabsContent value="liabilities" className="space-y-3 pt-4">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setLiabilityDialogOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              Tambah Hutang
+              <Plus className="mr-1 h-4 w-4" />Tambah Hutang
             </Button>
           </div>
-          {(networth?.liabilities ?? []).map((l: {
-            id: string;
-            name: string;
-            category: string;
-            amount: number | string;
-            note: string | null;
-          }) => (
+          {(networth?.liabilities ?? []).map((l: Liability) => (
             <div key={l.id} className="flex items-center justify-between rounded-md border px-4 py-3">
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">{l.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {LIABILITY_CATEGORIES.find((c) => c.value === l.category)?.label ?? l.category}
+                  {l.note && ` · ${l.note}`}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0">
                 <p className="font-semibold text-red-600">{formatCurrency(Number(l.amount))}</p>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => deleteLiabilityMutation.mutate(l.id)}
-                >
+                <Button size="icon" variant="ghost" className="h-7 w-7"
+                  onClick={() => { setEditLiability(l); setEditLiabilityCategory(l.category); }}>
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => deleteLiabilityMutation.mutate(l.id)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -416,16 +433,12 @@ export default function NetWorthPage() {
         </TabsContent>
       </Tabs>
 
+      {/* ── Dialog Tambah Aset ──────────────────────────────────── */}
       <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Tambah Aset Lainnya</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Tambah Aset Lainnya</DialogTitle></DialogHeader>
           <form key={assetDialogOpen ? "open" : "closed"} onSubmit={handleAddAsset} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nama Aset</Label>
-              <Input name="name" placeholder="BCA Tabungan" required />
-            </div>
+            <div className="space-y-2"><Label>Nama Aset</Label><Input name="name" placeholder="BCA Tabungan" required /></div>
             <div className="space-y-2">
               <Label>Kategori</Label>
               <Select value={assetCategory} onValueChange={(v) => setAssetCategory(v ?? "")} required>
@@ -435,20 +448,12 @@ export default function NetWorthPage() {
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {ASSET_CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
+                  {ASSET_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Nilai (Rp)</Label>
-              <Input name="value" type="number" min={0} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Catatan</Label>
-              <Input name="note" placeholder="Opsional" />
-            </div>
+            <div className="space-y-2"><Label>Nilai (Rp)</Label><Input name="value" type="number" min={0} required /></div>
+            <div className="space-y-2"><Label>Catatan</Label><Input name="note" placeholder="Opsional" /></div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAssetDialogOpen(false)}>Batal</Button>
               <Button type="submit" disabled={!assetCategory || addAssetMutation.isPending}>Simpan</Button>
@@ -457,16 +462,41 @@ export default function NetWorthPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Dialog Edit Aset ────────────────────────────────────── */}
+      <Dialog open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Edit Aset — {editAsset?.name}</DialogTitle></DialogHeader>
+          {editAsset && (
+            <form key={editAsset.id} onSubmit={handleEditAsset} className="space-y-4">
+              <div className="space-y-2"><Label>Nama Aset</Label><Input name="name" defaultValue={editAsset.name} required /></div>
+              <div className="space-y-2">
+                <Label>Kategori</Label>
+                <Select value={editAssetCategory} onValueChange={(v) => setEditAssetCategory(v ?? "")} required>
+                  <SelectTrigger>
+                    <span>{ASSET_CATEGORIES.find((c) => c.value === editAssetCategory)?.label ?? "Pilih..."}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ASSET_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Nilai (Rp)</Label><Input name="value" type="number" min={0} required defaultValue={Number(editAsset.value)} /></div>
+              <div className="space-y-2"><Label>Catatan</Label><Input name="note" defaultValue={editAsset.note ?? ""} placeholder="Opsional" /></div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditAsset(null)}>Batal</Button>
+                <Button type="submit" disabled={!editAssetCategory || updateAssetMutation.isPending}>Simpan</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Tambah Hutang ─────────────────────────────────── */}
       <Dialog open={liabilityDialogOpen} onOpenChange={setLiabilityDialogOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Tambah Hutang</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Tambah Hutang</DialogTitle></DialogHeader>
           <form key={liabilityDialogOpen ? "open" : "closed"} onSubmit={handleAddLiability} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nama Hutang</Label>
-              <Input name="name" placeholder="KPR BCA" required />
-            </div>
+            <div className="space-y-2"><Label>Nama Hutang</Label><Input name="name" placeholder="KPR BCA" required /></div>
             <div className="space-y-2">
               <Label>Kategori</Label>
               <Select value={liabilityCategory} onValueChange={(v) => setLiabilityCategory(v ?? "")} required>
@@ -476,25 +506,46 @@ export default function NetWorthPage() {
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {LIABILITY_CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
+                  {LIABILITY_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Jumlah (Rp)</Label>
-              <Input name="amount" type="number" min={0} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Catatan</Label>
-              <Input name="note" placeholder="Opsional" />
-            </div>
+            <div className="space-y-2"><Label>Jumlah (Rp)</Label><Input name="amount" type="number" min={0} required /></div>
+            <div className="space-y-2"><Label>Catatan</Label><Input name="note" placeholder="Opsional" /></div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setLiabilityDialogOpen(false)}>Batal</Button>
               <Button type="submit" disabled={!liabilityCategory || addLiabilityMutation.isPending}>Simpan</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Edit Hutang ───────────────────────────────────── */}
+      <Dialog open={!!editLiability} onOpenChange={(o) => !o && setEditLiability(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Edit Hutang — {editLiability?.name}</DialogTitle></DialogHeader>
+          {editLiability && (
+            <form key={editLiability.id} onSubmit={handleEditLiability} className="space-y-4">
+              <div className="space-y-2"><Label>Nama Hutang</Label><Input name="name" defaultValue={editLiability.name} required /></div>
+              <div className="space-y-2">
+                <Label>Kategori</Label>
+                <Select value={editLiabilityCategory} onValueChange={(v) => setEditLiabilityCategory(v ?? "")} required>
+                  <SelectTrigger>
+                    <span>{LIABILITY_CATEGORIES.find((c) => c.value === editLiabilityCategory)?.label ?? "Pilih..."}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LIABILITY_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Jumlah (Rp)</Label><Input name="amount" type="number" min={0} required defaultValue={Number(editLiability.amount)} /></div>
+              <div className="space-y-2"><Label>Catatan</Label><Input name="note" defaultValue={editLiability.note ?? ""} placeholder="Opsional" /></div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditLiability(null)}>Batal</Button>
+                <Button type="submit" disabled={!editLiabilityCategory || updateLiabilityMutation.isPending}>Simpan</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

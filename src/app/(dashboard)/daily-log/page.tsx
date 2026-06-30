@@ -5,7 +5,7 @@ import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
 

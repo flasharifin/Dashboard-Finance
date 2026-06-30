@@ -40,6 +40,32 @@ export function useCreateSnapshot() {
   });
 }
 
+export function useUpdateAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      fetch(`/api/networth/assets/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+  });
+}
+
+export function useUpdateLiability() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      fetch(`/api/networth/liabilities/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+  });
+}
+
 export function useAddAsset() {
   const queryClient = useQueryClient();
   return useMutation({

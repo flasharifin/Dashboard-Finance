@@ -20,6 +20,19 @@ export function useAddDividend() {
   });
 }
 
+export function useUpdateDividend() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      fetch(`/api/dividends/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dividends"] }),
+  });
+}
+
 export function useDeleteDividend() {
   const queryClient = useQueryClient();
   return useMutation({

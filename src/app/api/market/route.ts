@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
-const CACHE_TTL = 15 * 60 * 1000;
-
-type QuoteCache = {
-  price: number;
-  change: number;
-  changePercent: number;
-  fetchedAt: number;
-};
-
-const priceCache = new Map<string, QuoteCache>();
+const CACHE_TTL_MS = 15 * 60 * 1000;
 
 function buildTicker(symbol: string, exchange: string): string {
   switch (exchange) {
@@ -21,36 +13,56 @@ function buildTicker(symbol: string, exchange: string): string {
   }
 }
 
-async function fetchQuote(symbol: string, exchange: string): Promise<QuoteCache | null> {
-  const cacheKey = `${exchange}:${symbol}`;
-  const cached = priceCache.get(cacheKey);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) return cached;
-
+async function fetchFromYahoo(symbol: string, exchange: string) {
   const ticker = buildTicker(symbol, exchange);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
       next: { revalidate: 0 },
     });
     if (!res.ok) return null;
-
     const json = await res.json();
     const meta = json?.chart?.result?.[0]?.meta;
     if (!meta) return null;
-
     const price: number = meta.regularMarketPrice ?? 0;
     const prevClose: number = meta.chartPreviousClose ?? price;
     const change = price - prevClose;
     const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-
-    const result: QuoteCache = { price, change, changePercent, fetchedAt: Date.now() };
-    priceCache.set(cacheKey, result);
-    return result;
+    return { price, change, changePercent };
   } catch {
     return null;
   }
+}
+
+async function fetchQuote(symbol: string, exchange: string) {
+  // Cek DB cache terlebih dahulu (persists across server restarts)
+  const cached = await db.marketPrice.findUnique({
+    where: { stockCode_exchange: { stockCode: symbol, exchange } },
+  });
+
+  if (cached && Date.now() - cached.fetchedAt.getTime() < CACHE_TTL_MS) {
+    return { price: cached.price, change: cached.change, changePercent: cached.changePercent };
+  }
+
+  // Fetch segar dari Yahoo Finance
+  const fresh = await fetchFromYahoo(symbol, exchange);
+
+  // Jika Yahoo gagal, kembalikan data cache lama daripada null
+  if (!fresh) {
+    return cached
+      ? { price: cached.price, change: cached.change, changePercent: cached.changePercent }
+      : null;
+  }
+
+  // Simpan/update cache di DB
+  await db.marketPrice.upsert({
+    where: { stockCode_exchange: { stockCode: symbol, exchange } },
+    update: { price: fresh.price, change: fresh.change, changePercent: fresh.changePercent, fetchedAt: new Date() },
+    create: { stockCode: symbol, exchange, ...fresh },
+  });
+
+  return fresh;
 }
 
 // Format: ?assets=BBCA:IDX,AAPL:US,BTC:CRYPTO
@@ -83,14 +95,7 @@ export async function GET(req: Request) {
   pairs.forEach(({ symbol, exchange }, i) => {
     const key = `${symbol}:${exchange}`;
     const result = results[i];
-    data[key] =
-      result.status === "fulfilled" && result.value
-        ? {
-            price: result.value.price,
-            change: result.value.change,
-            changePercent: result.value.changePercent,
-          }
-        : null;
+    data[key] = result.status === "fulfilled" && result.value ? result.value : null;
   });
 
   return NextResponse.json({ data });

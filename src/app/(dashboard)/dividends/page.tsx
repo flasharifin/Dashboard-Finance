@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useDividends, useAddDividend, useDeleteDividend } from "@/hooks/use-dividends";
+import { useDividends, useAddDividend, useUpdateDividend, useDeleteDividend } from "@/hooks/use-dividends";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Banknote, Download } from "lucide-react";
+import { Plus, Trash2, Banknote, Download, Pencil } from "lucide-react";
 import { formatCurrency, formatPercent, calcDividendYield, calcNetDps, calcReceivedAmount, exportToCSV, cn } from "@/lib/utils";
 import type { PortfolioWithCalc } from "@/types";
 
@@ -38,10 +38,20 @@ export default function DividendsPage() {
   const { data: dividends = [], isLoading } = useDividends();
   const { data: portfolios = [] } = usePortfolio();
   const addMutation = useAddDividend();
+  const updateMutation = useUpdateDividend();
   const deleteMutation = useDeleteDividend();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState("");
+
+  // Edit state
+  type DividendRow = {
+    id: string; stockCode: string; dps: number | string; taxPct: number | string;
+    receivedAmount: number | string | null; paymentDate: string | null;
+    cumDate: string | null; exDate: string | null; note: string | null;
+    portfolio?: { avgPrice: number | string };
+  };
+  const [editDividend, setEditDividend] = useState<DividendRow | null>(null);
 
   const currentYear = new Date().getFullYear();
 
@@ -92,6 +102,22 @@ export default function DividendsPage() {
 
     setDialogOpen(false);
     setSelectedPortfolioId("");
+  }
+
+  async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editDividend) return;
+    const form = new FormData(e.currentTarget);
+    await updateMutation.mutateAsync({
+      id: editDividend.id,
+      dps: Number(form.get("dps")),
+      taxPct: Number(form.get("taxPct")),
+      cumDate: form.get("cumDate") || null,
+      exDate: form.get("exDate") || null,
+      paymentDate: form.get("paymentDate") || null,
+      note: form.get("note") || undefined,
+    });
+    setEditDividend(null);
   }
 
   async function handleDelete(id: string) {
@@ -238,7 +264,7 @@ export default function DividendsPage() {
               <TableHead className="text-right">Yield</TableHead>
               <TableHead className="text-right">Diterima</TableHead>
               <TableHead>Payment Date</TableHead>
-              <TableHead />
+              <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -257,15 +283,7 @@ export default function DividendsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              dividends.map((d: {
-                id: string;
-                stockCode: string;
-                dps: number | string;
-                taxPct: number | string;
-                receivedAmount: number | string | null;
-                paymentDate: string | null;
-                portfolio?: { avgPrice: number | string };
-              }) => {
+              dividends.map((d: DividendRow) => {
                 const dps = Number(d.dps);
                 const taxPct = Number(d.taxPct);
                 const netDps = calcNetDps(dps, taxPct);
@@ -292,14 +310,17 @@ export default function DividendsPage() {
                         : "—"}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(d.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7"
+                          onClick={() => setEditDividend(d)}>
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                        <Button size="icon" variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(d.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -308,6 +329,46 @@ export default function DividendsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* ── Dialog Edit Dividen ─────────────────────────────────── */}
+      <Dialog open={!!editDividend} onOpenChange={(o) => !o && setEditDividend(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Dividen — {editDividend?.stockCode}</DialogTitle></DialogHeader>
+          {editDividend && (
+            <form key={editDividend.id} onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>DPS Gross (Rp/lembar)</Label>
+                  <Input name="dps" type="number" step="0.0001" min="0.0001" required defaultValue={Number(editDividend.dps)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pajak (%)</Label>
+                  <Input name="taxPct" type="number" min={0} max={100} required defaultValue={Number(editDividend.taxPct)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Cum Date</Label>
+                  <Input name="cumDate" type="date" defaultValue={editDividend.cumDate ? new Date(editDividend.cumDate).toISOString().split("T")[0] : ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Ex Date</Label>
+                  <Input name="exDate" type="date" defaultValue={editDividend.exDate ? new Date(editDividend.exDate).toISOString().split("T")[0] : ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Date</Label>
+                  <Input name="paymentDate" type="date" defaultValue={editDividend.paymentDate ? new Date(editDividend.paymentDate).toISOString().split("T")[0] : ""} />
+                </div>
+              </div>
+              <div className="space-y-2"><Label>Catatan</Label><Input name="note" defaultValue={editDividend.note ?? ""} placeholder="Opsional" /></div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDividend(null)}>Batal</Button>
+                <Button type="submit" disabled={updateMutation.isPending}>Simpan</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">

@@ -198,6 +198,19 @@ model NetWorthSnapshot {
   @@index([snapshotDate])
 }
 
+model MarketPrice {
+  id            String   @id @default(cuid())
+  stockCode     String
+  exchange      String
+  price         Float
+  change        Float
+  changePercent Float
+  fetchedAt     DateTime @default(now())
+
+  @@unique([stockCode, exchange])
+  @@index([fetchedAt])
+}
+
 enum AssetCategory {
   cash
   stock
