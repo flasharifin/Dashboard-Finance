@@ -66,9 +66,11 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
           {portfolios.map((p) => {
             const isProfit = (p.unrealizedPnl ?? 0) >= 0;
             const unitLabel = getUnitLabel(p.exchange);
+            const fmtUnits = (n: number) =>
+              new Intl.NumberFormat("id-ID", { maximumFractionDigits: 8 }).format(n);
             const qty = p.exchange === "IDX"
               ? `${formatNumber(p.lot, 0)} lot`
-              : `${formatNumber(p.units, p.exchange === "CRYPTO" ? 4 : 0)} ${unitLabel}`;
+              : `${fmtUnits(p.units)} ${unitLabel}`;
 
             return (
               <TableRow key={p.id}>
