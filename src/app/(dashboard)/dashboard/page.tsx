@@ -290,7 +290,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Bottom section */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Pie chart: komposisi portfolio */}
         <Card>
           <CardHeader>

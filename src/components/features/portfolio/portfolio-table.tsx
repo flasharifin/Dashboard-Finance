@@ -48,8 +48,8 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
+    <div className="rounded-md border overflow-x-auto">
+      <Table className="min-w-[640px]">
         <TableHeader>
           <TableRow>
             <TableHead>Aset</TableHead>
