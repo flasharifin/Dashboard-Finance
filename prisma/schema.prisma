@@ -70,10 +70,11 @@ model Portfolio {
   id        String   @id @default(cuid())
   userId    String
   stockCode String
-  lot       Decimal  @db.Decimal(15, 4)
-  avgPrice  Decimal  @db.Decimal(15, 4)
+  lot       Decimal  @db.Decimal(15, 8)
+  avgPrice  Decimal  @db.Decimal(15, 8)
   exchange  String   @default("IDX")
   currency  String   @default("IDR")
+  platform  String   @default("")
   sector    String?
   note      String?
   createdAt DateTime @default(now())
@@ -84,7 +85,7 @@ model Portfolio {
   dcaPlans        DcaPlan[]
   dcaTransactions DcaTransaction[]
 
-  @@unique([userId, stockCode])
+  @@unique([userId, stockCode, platform])
   @@index([userId])
 }
 

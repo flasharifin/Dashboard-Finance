@@ -32,9 +32,10 @@ export async function POST(req: Request) {
 
   const portfolio = await db.portfolio.upsert({
     where: {
-      userId_stockCode: {
+      userId_stockCode_platform: {
         userId: session.user.id,
         stockCode: parsed.data.stockCode,
+        platform: parsed.data.platform ?? "",
       },
     },
     update: {

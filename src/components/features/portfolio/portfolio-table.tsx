@@ -81,6 +81,9 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
                       {p.sector && (
                         <span className="ml-1.5 text-xs text-muted-foreground">{p.sector}</span>
                       )}
+                      {p.platform && (
+                        <p className="text-xs text-muted-foreground">{p.platform}</p>
+                      )}
                     </div>
                     <Badge
                       variant="outline"

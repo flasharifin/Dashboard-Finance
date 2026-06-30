@@ -86,7 +86,9 @@ export default function DcaPage() {
                     {selectedId
                       ? (() => {
                           const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedId);
-                          return p ? `[${p.exchange}] ${p.stockCode} — ${formatCurrency(p.avgPrice, p.currency)}` : selectedId;
+                          if (!p) return selectedId;
+                          const label = p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode;
+                          return `[${p.exchange}] ${label} — ${formatCurrency(p.avgPrice, p.currency)}`;
                         })()
                       : "Pilih aset dari portfolio..."}
                   </span>
@@ -103,7 +105,7 @@ export default function DcaPage() {
                         >
                           {p.exchange}
                         </span>
-                        {p.stockCode} — {formatCurrency(p.avgPrice, p.currency)}
+                        {p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode} — {formatCurrency(p.avgPrice, p.currency)}
                       </div>
                     </SelectItem>
                   ))}

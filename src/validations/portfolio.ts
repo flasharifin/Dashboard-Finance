@@ -10,6 +10,7 @@ export const portfolioSchema = z.object({
   avgPrice: z.number().positive("Harga beli harus lebih dari 0"),
   exchange: z.enum(["IDX", "US", "CRYPTO"]).default("IDX"),
   currency: z.enum(["IDR", "USD"]).default("IDR"),
+  platform: z.string().default(""),
   sector: z.string().optional(),
   note: z.string().optional(),
 });

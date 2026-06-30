@@ -9,6 +9,7 @@ type RawPortfolio = {
   avgPrice: number | string;
   exchange: Exchange;
   currency: Currency;
+  platform: string;
   sector: string | null;
   note: string | null;
 };
@@ -48,6 +49,7 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
       avgPrice,
       exchange: p.exchange,
       currency: p.currency,
+      platform: p.platform ?? "",
       sector: p.sector,
       note: p.note,
       units,

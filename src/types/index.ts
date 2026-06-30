@@ -16,6 +16,7 @@ export type PortfolioWithCalc = {
   avgPrice: number;
   exchange: Exchange;
   currency: Currency;
+  platform: string;
   sector: string | null;
   note: string | null;
   marketPrice: number | null;

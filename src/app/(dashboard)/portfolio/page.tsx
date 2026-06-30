@@ -91,6 +91,7 @@ export default function PortfolioPage() {
       avgPrice,
       exchange,
       currency: selectedExchangeOpt.currency,
+      platform: (form.get("platform") as string) || "",
       sector: (form.get("sector") as string) || undefined,
       note: (form.get("note") as string) || undefined,
     };
@@ -188,6 +189,19 @@ export default function PortfolioPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Platform / Broker</Label>
+                <Input
+                  name="platform"
+                  defaultValue={editing?.platform ?? ""}
+                  placeholder={
+                    exchange === "CRYPTO" ? "Hyperliquid" : exchange === "US" ? "IBKR" : "Mandiri Sekuritas"
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Sektor / Kategori</Label>
                 <Input
                   name="sector"
@@ -196,6 +210,10 @@ export default function PortfolioPage() {
                     exchange === "CRYPTO" ? "Layer 1" : exchange === "US" ? "Tech" : "Perbankan"
                   }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Catatan</Label>
+                <Input name="note" defaultValue={editing?.note ?? ""} placeholder="Opsional" />
               </div>
             </div>
 
@@ -234,11 +252,6 @@ export default function PortfolioPage() {
                   required
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Catatan</Label>
-              <Input name="note" defaultValue={editing?.note ?? ""} placeholder="Opsional" />
             </div>
 
             {/* DCA simulator — hanya untuk edit */}

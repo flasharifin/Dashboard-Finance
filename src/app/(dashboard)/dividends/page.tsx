@@ -230,17 +230,22 @@ export default function DividendsPage() {
                     {selectedPortfolioId
                       ? (() => {
                           const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedPortfolioId);
-                          return p ? `${p.stockCode} — ${p.lot} ${p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}` : selectedPortfolioId;
+                          if (!p) return selectedPortfolioId;
+                          const qty = `${p.lot} ${p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}`;
+                          return p.platform ? `${p.stockCode} (${p.platform}) — ${qty}` : `${p.stockCode} — ${qty}`;
                         })()
                       : "Pilih saham..."}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {portfolios.map((p: PortfolioWithCalc) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.stockCode} — {p.lot} {p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}
-                    </SelectItem>
-                  ))}
+                  {portfolios.map((p: PortfolioWithCalc) => {
+                    const qty = `${p.lot} ${p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}`;
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.platform ? `${p.stockCode} (${p.platform}) — ${qty}` : `${p.stockCode} — ${qty}`}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
