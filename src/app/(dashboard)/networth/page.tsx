@@ -86,17 +86,16 @@ export default function NetWorthPage() {
   const [assetCategory, setAssetCategory] = useState("");
   const [liabilityCategory, setLiabilityCategory] = useState("");
 
-  // Nilai portfolio dalam IDR (pakai market value jika ada, fallback ke modal)
+  // Nilai portfolio dalam IDR — hanya untuk info di tab Aset, tidak masuk ke summary cards
   const portfolioValueIDR = portfolios.reduce((sum: number, p: PortfolioWithCalc) => {
     const val = p.marketValue ?? p.totalCost;
     return sum + (p.currency === "IDR" ? val : val * usdToIdr);
   }, 0);
 
-  // Total gabungan: aset manual + nilai portfolio
+  // Summary cards hanya dari aset yang diinput manual
   const manualAssetsTotal = networth?.totalAssets ?? 0;
-  const totalAssetsAll = manualAssetsTotal + portfolioValueIDR;
   const totalLiabilities = networth?.totalLiabilities ?? 0;
-  const netValue = totalAssetsAll - totalLiabilities;
+  const netValue = networth?.netValue ?? 0;
   const isPositive = netValue >= 0;
 
   async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
@@ -154,20 +153,19 @@ export default function NetWorthPage() {
         </Button>
       </div>
 
-      {/* Summary cards — menggunakan total gabungan */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {isLoading || portfolioLoading ? (
+        {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28" />)
         ) : (
           <>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Aset</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Aset Manual</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalAssetsAll)}</p>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(manualAssetsTotal)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Porto: {formatCurrency(portfolioValueIDR)} · Manual: {formatCurrency(manualAssetsTotal)}
+                  Kas, properti, reksa dana, dll.
                 </p>
               </CardContent>
             </Card>
