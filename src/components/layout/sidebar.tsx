@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Banknote,
   Wallet,
+  Activity,
   LogOut,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/portfolio", label: "Portfolio", icon: TrendingUp },
+  { href: "/daily-log", label: "Log Harian", icon: Activity },
   { href: "/dca", label: "DCA", icon: CalendarClock },
   { href: "/dividends", label: "Dividen", icon: Banknote },
   { href: "/networth", label: "Net Worth", icon: Wallet },

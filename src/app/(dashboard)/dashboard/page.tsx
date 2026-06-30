@@ -217,113 +217,62 @@ export default function DashboardPage() {
       </div>
 
       {/* Daily P&L */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              {totalDailyChangeIDR >= 0 ? (
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
-              ) : (
-                <TrendingDown className="h-5 w-5 text-red-500" />
-              )}
-              Perubahan Hari Ini
-            </CardTitle>
-            {!portfolioLoading && dailyRows.length > 0 && (
-              <div className={cn(
-                "flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold",
-                totalDailyChangeIDR > 0
-                  ? "bg-emerald-50 text-emerald-700"
-                  : totalDailyChangeIDR < 0
-                  ? "bg-red-50 text-red-700"
-                  : "bg-muted text-muted-foreground"
-              )}>
-                {totalDailyChangeIDR > 0 ? (
-                  <ArrowUp className="h-3.5 w-3.5" />
-                ) : totalDailyChangeIDR < 0 ? (
-                  <ArrowDown className="h-3.5 w-3.5" />
+      <Link href="/daily-log">
+        <Card className="transition-shadow hover:shadow-md cursor-pointer">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                {totalDailyChangeIDR >= 0 ? (
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
                 ) : (
-                  <Minus className="h-3.5 w-3.5" />
+                  <TrendingDown className="h-5 w-5 text-red-500" />
                 )}
-                {formatPercent(Math.abs(totalDailyChangePct))}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {portfolioLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : dailyRows.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              Data harga pasar belum tersedia.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {/* Total baris */}
-              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5">
-                <span className="text-sm font-semibold">Total Portfolio</span>
-                <div className="text-right">
+                Perubahan Hari Ini
+              </CardTitle>
+              {!portfolioLoading && dailyRows.length > 0 && (
+                <div className={cn(
+                  "flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold",
+                  totalDailyChangeIDR > 0
+                    ? "bg-emerald-50 text-emerald-700"
+                    : totalDailyChangeIDR < 0
+                    ? "bg-red-50 text-red-700"
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {totalDailyChangeIDR > 0 ? (
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  ) : totalDailyChangeIDR < 0 ? (
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <Minus className="h-3.5 w-3.5" />
+                  )}
+                  {totalDailyChangePct >= 0 ? "+" : ""}{totalDailyChangePct.toFixed(2)}%
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {portfolioLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : dailyRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Data harga pasar belum tersedia.</p>
+            ) : (
+              <div className="flex items-end justify-between">
+                <div>
                   <p className={cn(
-                    "text-lg font-bold",
+                    "text-2xl font-bold",
                     totalDailyChangeIDR > 0 ? "text-emerald-600" : totalDailyChangeIDR < 0 ? "text-red-600" : ""
                   )}>
                     {totalDailyChangeIDR >= 0 ? "+" : ""}
                     {formatCurrency(totalDailyChangeIDR)}
                   </p>
-                  <p className={cn(
-                    "text-xs",
-                    totalDailyChangeIDR > 0 ? "text-emerald-600" : totalDailyChangeIDR < 0 ? "text-red-600" : "text-muted-foreground"
-                  )}>
-                    {totalDailyChangePct >= 0 ? "+" : ""}
-                    {totalDailyChangePct.toFixed(2)}%
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">dari {dailyRows.length} posisi aktif</p>
                 </div>
+                <p className="text-xs text-muted-foreground">Lihat detail →</p>
               </div>
-
-              {/* Per-aset breakdown */}
-              <div className="divide-y">
-                {dailyRows.map((r) => {
-                  const isUp = r.dailyChangeIDR > 0;
-                  const isDown = r.dailyChangeIDR < 0;
-                  return (
-                    <div key={r.id} className="flex items-center justify-between py-2 px-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Badge
-                          variant="outline"
-                          className={cn("shrink-0 text-xs px-1.5 py-0", EXCHANGE_BADGE[r.exchange])}
-                        >
-                          {r.exchange}
-                        </Badge>
-                        <div className="min-w-0">
-                          <span className="text-sm font-medium">{r.stockCode}</span>
-                          {r.platform && (
-                            <span className="ml-1 text-xs text-muted-foreground">({r.platform})</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0 pl-3">
-                        <p className={cn(
-                          "text-sm font-semibold",
-                          isUp ? "text-emerald-600" : isDown ? "text-red-600" : "text-muted-foreground"
-                        )}>
-                          {isUp ? "+" : ""}
-                          {formatCurrency(r.dailyChangeIDR)}
-                        </p>
-                        <p className={cn(
-                          "text-xs",
-                          isUp ? "text-emerald-600" : isDown ? "text-red-600" : "text-muted-foreground"
-                        )}>
-                          {(r.dailyChangePercent ?? 0) >= 0 ? "+" : ""}
-                          {(r.dailyChangePercent ?? 0).toFixed(2)}%
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Target Goal */}
       <Card>
