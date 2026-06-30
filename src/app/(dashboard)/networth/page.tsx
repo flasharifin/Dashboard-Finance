@@ -10,10 +10,13 @@ import {
   useAddLiability,
   useDeleteLiability,
 } from "@/hooks/use-networth";
+import { usePortfolio } from "@/hooks/use-portfolio";
+import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -29,8 +32,9 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Trash2, Plus, Camera } from "lucide-react";
+import { Trash2, Plus, Camera, TrendingUp } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
+import type { PortfolioWithCalc } from "@/types";
 import {
   LineChart,
   Line,
@@ -45,10 +49,8 @@ import { id as idLocale } from "date-fns/locale";
 
 const ASSET_CATEGORIES = [
   { value: "cash", label: "Kas & Tabungan" },
-  { value: "stock", label: "Saham" },
   { value: "mutual_fund", label: "Reksa Dana" },
   { value: "property", label: "Properti" },
-  { value: "crypto", label: "Kripto" },
   { value: "other", label: "Lainnya" },
 ];
 
@@ -60,9 +62,19 @@ const LIABILITY_CATEGORIES = [
   { value: "other", label: "Lainnya" },
 ];
 
+const EXCHANGE_BADGE: Record<string, string> = {
+  IDX: "bg-blue-100 text-blue-700",
+  US: "bg-violet-100 text-violet-700",
+  CRYPTO: "bg-amber-100 text-amber-700",
+};
+
 export default function NetWorthPage() {
   const { data: networth, isLoading } = useNetWorth();
   const { data: snapshots = [] } = useNetWorthSnapshots();
+  const { data: portfolios = [], isLoading: portfolioLoading } = usePortfolio();
+  const { data: rateData } = useExchangeRate();
+  const usdToIdr = rateData?.USDIDR ?? 16000;
+
   const createSnapshotMutation = useCreateSnapshot();
   const addAssetMutation = useAddAsset();
   const deleteAssetMutation = useDeleteAsset();
@@ -73,6 +85,19 @@ export default function NetWorthPage() {
   const [liabilityDialogOpen, setLiabilityDialogOpen] = useState(false);
   const [assetCategory, setAssetCategory] = useState("");
   const [liabilityCategory, setLiabilityCategory] = useState("");
+
+  // Nilai portfolio dalam IDR (pakai market value jika ada, fallback ke modal)
+  const portfolioValueIDR = portfolios.reduce((sum: number, p: PortfolioWithCalc) => {
+    const val = p.marketValue ?? p.totalCost;
+    return sum + (p.currency === "IDR" ? val : val * usdToIdr);
+  }, 0);
+
+  // Total gabungan: aset manual + nilai portfolio
+  const manualAssetsTotal = networth?.totalAssets ?? 0;
+  const totalAssetsAll = manualAssetsTotal + portfolioValueIDR;
+  const totalLiabilities = networth?.totalLiabilities ?? 0;
+  const netValue = totalAssetsAll - totalLiabilities;
+  const isPositive = netValue >= 0;
 
   async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,14 +125,17 @@ export default function NetWorthPage() {
     setLiabilityCategory("");
   }
 
-  const chartData = snapshots.map((s: { snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string }) => ({
+  const chartData = snapshots.map((s: {
+    snapshotDate: string;
+    netValue: number | string;
+    totalAssets: number | string;
+    totalLiabilities: number | string;
+  }) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
     "Net Worth": Number(s.netValue),
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
   }));
-
-  const isPositive = (networth?.netValue ?? 0) >= 0;
 
   return (
     <div className="space-y-6">
@@ -126,33 +154,29 @@ export default function NetWorthPage() {
         </Button>
       </div>
 
+      {/* Summary cards — menggunakan total gabungan */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {isLoading ? (
+        {isLoading || portfolioLoading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28" />)
         ) : (
           <>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Aset
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Aset</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {formatCurrency(networth?.totalAssets ?? 0)}
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalAssetsAll)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Porto: {formatCurrency(portfolioValueIDR)} · Manual: {formatCurrency(manualAssetsTotal)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Hutang
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Hutang</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(networth?.totalLiabilities ?? 0)}
-                </p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalLiabilities)}</p>
               </CardContent>
             </Card>
             <Card className="border-2 border-primary/20">
@@ -163,7 +187,7 @@ export default function NetWorthPage() {
               </CardHeader>
               <CardContent>
                 <p className={cn("text-2xl font-bold", isPositive ? "text-primary" : "text-red-600")}>
-                  {formatCurrency(networth?.netValue ?? 0)}
+                  {formatCurrency(netValue)}
                 </p>
               </CardContent>
             </Card>
@@ -208,18 +232,81 @@ export default function NetWorthPage() {
           <TabsTrigger value="liabilities">Hutang</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="assets" className="space-y-3 pt-4">
-          <div className="flex justify-end">
+        <TabsContent value="assets" className="space-y-4 pt-4">
+          {/* === Portofolio Investasi — otomatis dari data portfolio === */}
+          <div className="rounded-md border bg-muted/30 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm font-semibold">Portofolio Investasi</span>
+                <span className="text-xs text-muted-foreground">(otomatis dari data porto)</span>
+              </div>
+              <span className="font-semibold text-emerald-600">{formatCurrency(portfolioValueIDR)}</span>
+            </div>
+            {portfolioLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+              </div>
+            ) : portfolios.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">
+                Belum ada data portfolio. Tambah aset di menu Portfolio.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {portfolios.map((p: PortfolioWithCalc) => {
+                  const val = p.marketValue ?? p.totalCost;
+                  const valIDR = p.currency === "IDR" ? val : val * usdToIdr;
+                  const isMarket = p.marketValue !== null;
+                  return (
+                    <div key={p.id} className="flex items-center justify-between px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn("text-xs px-1.5 py-0", EXCHANGE_BADGE[p.exchange])}
+                        >
+                          {p.exchange}
+                        </Badge>
+                        <span className="text-sm font-medium">{p.stockCode}</span>
+                        {p.sector && (
+                          <span className="text-xs text-muted-foreground">{p.sector}</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatCurrency(valIDR)}</p>
+                        {p.currency === "USD" && (
+                          <p className="text-xs text-muted-foreground">{formatCurrency(val, "USD")}</p>
+                        )}
+                        {!isMarket && (
+                          <p className="text-xs text-muted-foreground">modal</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* === Aset Manual (kas, properti, reksa dana, dll) === */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-muted-foreground">Aset Lainnya</p>
             <Button size="sm" onClick={() => setAssetDialogOpen(true)}>
               <Plus className="mr-1 h-4 w-4" />
               Tambah Aset
             </Button>
           </div>
-          {(networth?.assets ?? []).map((a: { id: string; name: string; category: string; value: number | string; note: string | null }) => (
+
+          {(networth?.assets ?? []).map((a: {
+            id: string;
+            name: string;
+            category: string;
+            value: number | string;
+            note: string | null;
+          }) => (
             <div key={a.id} className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
                 <p className="font-medium">{a.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
+                <p className="text-xs text-muted-foreground">
                   {ASSET_CATEGORIES.find((c) => c.value === a.category)?.label ?? a.category}
                 </p>
               </div>
@@ -237,7 +324,9 @@ export default function NetWorthPage() {
             </div>
           ))}
           {(networth?.assets ?? []).length === 0 && (
-            <p className="py-8 text-center text-muted-foreground">Belum ada data aset.</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Belum ada aset lainnya. Tambahkan kas, properti, reksa dana, dll.
+            </p>
           )}
         </TabsContent>
 
@@ -248,7 +337,13 @@ export default function NetWorthPage() {
               Tambah Hutang
             </Button>
           </div>
-          {(networth?.liabilities ?? []).map((l: { id: string; name: string; category: string; amount: number | string; note: string | null }) => (
+          {(networth?.liabilities ?? []).map((l: {
+            id: string;
+            name: string;
+            category: string;
+            amount: number | string;
+            note: string | null;
+          }) => (
             <div key={l.id} className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
                 <p className="font-medium">{l.name}</p>
@@ -278,9 +373,9 @@ export default function NetWorthPage() {
       <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Tambah Aset</DialogTitle>
+            <DialogTitle>Tambah Aset Lainnya</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddAsset} className="space-y-4">
+          <form key={assetDialogOpen ? "open" : "closed"} onSubmit={handleAddAsset} className="space-y-4">
             <div className="space-y-2">
               <Label>Nama Aset</Label>
               <Input name="name" placeholder="BCA Tabungan" required />
@@ -321,7 +416,7 @@ export default function NetWorthPage() {
           <DialogHeader>
             <DialogTitle>Tambah Hutang</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddLiability} className="space-y-4">
+          <form key={liabilityDialogOpen ? "open" : "closed"} onSubmit={handleAddLiability} className="space-y-4">
             <div className="space-y-2">
               <Label>Nama Hutang</Label>
               <Input name="name" placeholder="KPR BCA" required />
