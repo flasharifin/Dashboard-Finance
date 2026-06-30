@@ -42,6 +42,10 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
     const unrealizedPnlPct =
       unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
 
+    // Daily change: price change per unit × units (native currency)
+    const dailyChange = marketData?.change != null ? marketData.change * units : null;
+    const dailyChangePercent = marketData?.changePercent ?? null;
+
     return {
       id: p.id,
       stockCode: p.stockCode,
@@ -58,6 +62,8 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
       marketValue,
       unrealizedPnl,
       unrealizedPnlPct,
+      dailyChange,
+      dailyChangePercent,
     };
   });
 }

@@ -25,6 +25,8 @@ export type PortfolioWithCalc = {
   marketValue: number | null;
   unrealizedPnl: number | null;
   unrealizedPnlPct: number | null;
+  dailyChange: number | null;
+  dailyChangePercent: number | null;
 };
 
 export type DividendWithCalc = {
