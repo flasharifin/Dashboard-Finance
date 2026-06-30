@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { dividendSchema } from "@/validations/dividend";
+import { z } from "zod";
 import { calcReceivedAmount } from "@/lib/utils";
+
+const editSchema = z.object({
+  dps: z.number().positive("DPS harus lebih dari 0"),
+  taxPct: z.number().min(0).max(100).default(10),
+  cumDate: z.string().optional().nullable(),
+  exDate: z.string().optional().nullable(),
+  paymentDate: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
+});
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -32,7 +41,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const parsed = dividendSchema.safeParse(body);
+  const parsed = editSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
