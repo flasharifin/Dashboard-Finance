@@ -5,6 +5,7 @@ import {
   useNetWorth,
   useNetWorthSnapshots,
   useCreateSnapshot,
+  useDeleteSnapshot,
   useAddAsset,
   useDeleteAsset,
   useAddLiability,
@@ -76,6 +77,7 @@ export default function NetWorthPage() {
   const usdToIdr = rateData?.USDIDR ?? 16000;
 
   const createSnapshotMutation = useCreateSnapshot();
+  const deleteSnapshotMutation = useDeleteSnapshot();
   const addAssetMutation = useAddAsset();
   const deleteAssetMutation = useDeleteAsset();
   const addLiabilityMutation = useAddLiability();
@@ -194,33 +196,78 @@ export default function NetWorthPage() {
         )}
       </div>
 
-      {chartData.length > 1 && (
+      {snapshots.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tren Net Worth</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Tren Net Worth</CardTitle>
+              <span className="text-xs text-muted-foreground">{snapshots.length} snapshot</span>
+            </div>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) =>
-                    v >= 1_000_000
-                      ? `${(v / 1_000_000).toFixed(0)}jt`
-                      : `${(v / 1000).toFixed(0)}rb`
-                  }
-                />
-                <Tooltip
-                  formatter={(value) => formatCurrency(Number(value))}
-                  labelStyle={{ fontWeight: 600 }}
-                />
-                <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
-                <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="space-y-4">
+            {chartData.length > 1 && (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) =>
+                      v >= 1_000_000
+                        ? `${(v / 1_000_000).toFixed(0)}jt`
+                        : `${(v / 1000).toFixed(0)}rb`
+                    }
+                  />
+                  <Tooltip
+                    formatter={(value) => formatCurrency(Number(value))}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+                  <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+
+            {/* List snapshot dengan tombol hapus */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Riwayat Snapshot</p>
+              <div className="divide-y rounded-md border">
+                {[...snapshots].reverse().map((s: {
+                  id: string;
+                  snapshotDate: string;
+                  netValue: number | string;
+                  totalAssets: number | string;
+                  totalLiabilities: number | string;
+                }) => (
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <div>
+                      <span className="font-medium">
+                        {format(new Date(s.snapshotDate), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                      </span>
+                      <span className="ml-3 text-muted-foreground">
+                        Aset {formatCurrency(Number(s.totalAssets))} · Hutang {formatCurrency(Number(s.totalLiabilities))}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className={cn("font-semibold", Number(s.netValue) >= 0 ? "text-primary" : "text-red-600")}>
+                        {formatCurrency(Number(s.netValue))}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (confirm("Hapus snapshot ini?")) deleteSnapshotMutation.mutate(s.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

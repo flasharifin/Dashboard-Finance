@@ -15,6 +15,15 @@ export function useNetWorthSnapshots() {
   });
 }
 
+export function useDeleteSnapshot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/networth/snapshot/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth-snapshots"] }),
+  });
+}
+
 export function useCreateSnapshot() {
   const queryClient = useQueryClient();
   return useMutation({
