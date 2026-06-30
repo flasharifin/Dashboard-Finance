@@ -50,6 +50,7 @@ export default function PortfolioPage() {
   const [exchange, setExchange] = useState<Exchange>("IDX");
   const [simNewLot, setSimNewLot] = useState("");
   const [simNewPrice, setSimNewPrice] = useState("");
+  const [formError, setFormError] = useState("");
 
   const selectedExchangeOpt = EXCHANGE_OPTIONS.find((e) => e.value === exchange)!;
   const unitLabel = getUnitLabel(exchange);
@@ -59,6 +60,7 @@ export default function PortfolioPage() {
     setExchange("IDX");
     setSimNewLot("");
     setSimNewPrice("");
+    setFormError("");
     setDialogOpen(true);
   }
 
@@ -67,29 +69,42 @@ export default function PortfolioPage() {
     setExchange(p.exchange);
     setSimNewLot("");
     setSimNewPrice("");
+    setFormError("");
     setDialogOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setFormError("");
     const form = new FormData(e.currentTarget);
+
+    const lot = Number(form.get("lot"));
+    const avgPrice = Number(form.get("avgPrice"));
+
+    if (!lot || lot <= 0) { setFormError("Jumlah harus lebih dari 0"); return; }
+    if (!avgPrice || avgPrice <= 0) { setFormError("Harga beli harus lebih dari 0"); return; }
+
     const payload = {
       // stockCode di-disabled saat edit → ambil dari state, bukan form
       stockCode: editing ? editing.stockCode : (form.get("stockCode") as string),
-      lot: Number(form.get("lot")),
-      avgPrice: Number(form.get("avgPrice")),
+      lot,
+      avgPrice,
       exchange,
       currency: selectedExchangeOpt.currency,
       sector: (form.get("sector") as string) || undefined,
       note: (form.get("note") as string) || undefined,
     };
 
-    if (editing) {
-      await updateMutation.mutateAsync({ id: editing.id, ...payload });
-    } else {
-      await addMutation.mutateAsync(payload);
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, ...payload });
+      } else {
+        await addMutation.mutateAsync(payload);
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Terjadi kesalahan, coba lagi.");
     }
-    setDialogOpen(false);
   }
 
   async function handleDelete(id: string) {
@@ -196,8 +211,8 @@ export default function PortfolioPage() {
                 <Input
                   name="lot"
                   type="number"
-                  min="0.00000001"
-                  step={exchange === "IDX" ? "1" : "0.00000001"}
+                  min="0"
+                  step="any"
                   defaultValue={editing?.lot}
                   required
                 />
@@ -213,8 +228,8 @@ export default function PortfolioPage() {
                 <Input
                   name="avgPrice"
                   type="number"
-                  min="0.00000001"
-                  step="0.00000001"
+                  min="0"
+                  step="any"
                   defaultValue={editing?.avgPrice}
                   required
                 />
@@ -237,7 +252,8 @@ export default function PortfolioPage() {
                     </Label>
                     <Input
                       type="number"
-                      step={exchange === "IDX" ? "1" : "0.00000001"}
+                      min="0"
+                      step="any"
                       value={simNewLot}
                       onChange={(e) => setSimNewLot(e.target.value)}
                       placeholder={exchange === "IDX" ? "10" : "5"}
@@ -271,6 +287,9 @@ export default function PortfolioPage() {
               </div>
             )}
 
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
             <DialogFooter>
               <Button
                 type="button"
