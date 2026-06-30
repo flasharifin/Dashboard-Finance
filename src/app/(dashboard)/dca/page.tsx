@@ -189,6 +189,26 @@ export default function DcaPage() {
   const plansForTxPortfolio = plans.filter((pl: DcaPlan) => pl.portfolioId === txPortfolioId);
   const totalTxCost = transactions.reduce((s: number, t: DcaTx) => s + Number(t.totalCost), 0);
 
+  function exportDcaCSV() {
+    const header = ["Aset", "Qty", "Harga", "Total", "Tanggal", "Catatan"];
+    const rows = transactions.map((t: DcaTx) => [
+      t.stockCode,
+      Number(t.lot),
+      Number(t.price),
+      Number(t.totalCost),
+      new Date(t.buyDate).toLocaleDateString("id-ID"),
+      t.note ?? "",
+    ]);
+    const csv = "﻿" + [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "histori-dca.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -462,15 +482,22 @@ export default function DcaPage() {
 
         {/* ── TAB: Histori ─────────────────────────────────────────── */}
         <TabsContent value="history" className="mt-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             {transactions.length > 0 && (
               <p className="text-sm text-muted-foreground">
                 Total investasi DCA: <b className="text-foreground">{formatCurrency(totalTxCost)}</b>
               </p>
             )}
-            <Button className="ml-auto" onClick={() => setTxDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />Catat Pembelian
-            </Button>
+            <div className="flex gap-2 ml-auto">
+              {transactions.length > 0 && (
+                <Button variant="outline" size="sm" onClick={exportDcaCSV}>
+                  Export CSV
+                </Button>
+              )}
+              <Button onClick={() => setTxDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />Catat Pembelian
+              </Button>
+            </div>
           </div>
 
           {txLoading ? (

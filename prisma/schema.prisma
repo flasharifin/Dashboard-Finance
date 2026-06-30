@@ -26,6 +26,7 @@ model User {
   assets            Asset[]
   liabilities       Liability[]
   netWorthSnapshots NetWorthSnapshot[]
+  userSetting       UserSetting?
 }
 
 model Account {
@@ -139,7 +140,7 @@ model DcaTransaction {
   portfolioId String
   dcaPlanId   String?
   stockCode   String
-  lot         Int
+  lot         Decimal  @db.Decimal(15, 8)
   price       Decimal  @db.Decimal(15, 2)
   totalCost   Decimal  @db.Decimal(15, 2)
   buyDate     DateTime @default(now())
@@ -190,12 +191,21 @@ model NetWorthSnapshot {
   totalAssets      Decimal  @db.Decimal(15, 2)
   totalLiabilities Decimal  @db.Decimal(15, 2)
   netValue         Decimal  @db.Decimal(15, 2)
+  portfolioValue   Decimal? @db.Decimal(15, 2)
   snapshotDate     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([snapshotDate])
+}
+
+model UserSetting {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  wealthTarget Decimal @default(100000000) @db.Decimal(15, 2)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MarketPrice {

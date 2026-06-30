@@ -3,7 +3,9 @@
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { useDividends } from "@/hooks/use-dividends";
 import { useNetWorth } from "@/hooks/use-networth";
+import { useNetWorthSnapshots } from "@/hooks/use-networth";
 import { useExchangeRate } from "@/hooks/use-exchange-rate";
+import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import { TrendingUp, Banknote, Wallet, TrendingDown, Target, Pencil, Check, X, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { PortfolioWithCalc } from "@/types";
 import {
   PieChart,
@@ -21,7 +23,14 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from "recharts";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 const EXCHANGE_BADGE: Record<string, string> = {
   IDX: "bg-blue-100 text-blue-700",
@@ -36,31 +45,24 @@ const PIE_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_TARGET = 100_000_000;
-const TARGET_KEY = "wealth-target";
 
 export default function DashboardPage() {
   const { data: portfolios, isLoading: portfolioLoading } = usePortfolio();
   const { data: dividends, isLoading: dividendLoading } = useDividends();
   const { data: networth, isLoading: networthLoading } = useNetWorth();
+  const { data: snapshots = [] } = useNetWorthSnapshots();
   const { data: rateData } = useExchangeRate();
+  const { data: settings } = useSettings();
+  const updateSettings = useUpdateSettings();
   const usdToIdr = rateData?.USDIDR ?? 16000;
 
-  const [target, setTarget] = useState(DEFAULT_TARGET);
+  const target = settings?.wealthTarget ?? DEFAULT_TARGET;
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState("");
 
-  // Baca target dari localStorage (setelah mount agar SSR aman)
-  useEffect(() => {
-    const saved = localStorage.getItem(TARGET_KEY);
-    if (saved) setTarget(Number(saved));
-  }, []);
-
   function saveTarget() {
     const val = Number(targetInput.replace(/\D/g, ""));
-    if (val > 0) {
-      setTarget(val);
-      localStorage.setItem(TARGET_KEY, String(val));
-    }
+    if (val > 0) updateSettings.mutate({ wealthTarget: val });
     setEditingTarget(false);
   }
 
@@ -158,6 +160,15 @@ export default function DashboardPage() {
 
   const targetProgress = Math.min((combinedNetWorth / target) * 100, 100);
   const targetRemaining = Math.max(target - combinedNetWorth, 0);
+
+  // Portfolio performance chart from snapshots
+  const portoChartData = snapshots
+    .filter((s) => s.portfolioValue != null)
+    .map((s) => ({
+      date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
+      Porto: Number(s.portfolioValue),
+      "Net Worth": Number(s.netValue),
+    }));
 
   const isLoading = networthLoading || portfolioLoading;
 
@@ -370,6 +381,36 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Portfolio performance chart */}
+      {portoChartData.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Performa Portfolio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={portoChartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) =>
+                    v >= 1_000_000 ? `${(v / 1_000_000).toFixed(0)}jt` : `${(v / 1000).toFixed(0)}rb`
+                  }
+                />
+                <Tooltip
+                  formatter={(value) => [formatCurrency(Number(value)), ""]}
+                  labelStyle={{ fontWeight: 600 }}
+                />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                <Line dataKey="Porto" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Nilai Porto" />
+                <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Net Worth" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bottom section */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

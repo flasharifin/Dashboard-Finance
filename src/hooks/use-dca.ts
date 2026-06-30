@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 async function apiFetch(url: string, options: RequestInit) {
   const res = await fetch(url, options);
@@ -25,7 +26,11 @@ export function useAddDcaPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dca-plans"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dca-plans"] });
+      toast.success("Rencana DCA berhasil ditambahkan");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -38,7 +43,11 @@ export function useUpdateDcaPlan() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dca-plans"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dca-plans"] });
+      toast.success("Rencana DCA berhasil diperbarui");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -47,7 +56,10 @@ export function useDeleteDcaPlan() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/dca/plans/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dca-plans"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dca-plans"] });
+      toast.success("Rencana DCA dihapus");
+    },
   });
 }
 
@@ -72,7 +84,9 @@ export function useAddDcaTransaction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["dca-transactions"] });
       qc.invalidateQueries({ queryKey: ["dca-plans"] });
+      toast.success("Transaksi DCA berhasil dicatat");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -81,6 +95,9 @@ export function useDeleteDcaTransaction() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/dca/transactions/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dca-transactions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dca-transactions"] });
+      toast.success("Transaksi DCA dihapus");
+    },
   });
 }

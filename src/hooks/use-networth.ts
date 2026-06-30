@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function useNetWorth() {
   return useQuery({
@@ -8,7 +9,14 @@ export function useNetWorth() {
 }
 
 export function useNetWorthSnapshots() {
-  return useQuery<{ id: string; snapshotDate: string; netValue: string | number; totalAssets: string | number; totalLiabilities: string | number }[]>({
+  return useQuery<{
+    id: string;
+    snapshotDate: string;
+    netValue: string | number;
+    totalAssets: string | number;
+    totalLiabilities: string | number;
+    portfolioValue: string | number | null;
+  }[]>({
     queryKey: ["networth-snapshots"],
     queryFn: () =>
       fetch("/api/networth/snapshot").then((r) => r.json()).then((r) => r.data ?? []),
@@ -20,7 +28,10 @@ export function useDeleteSnapshot() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/networth/snapshot/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth-snapshots"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth-snapshots"] });
+      toast.success("Snapshot dihapus");
+    },
   });
 }
 
@@ -49,7 +60,10 @@ export function useUpdateAsset() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Aset berhasil diperbarui");
+    },
   });
 }
 
@@ -62,7 +76,10 @@ export function useUpdateLiability() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Hutang berhasil diperbarui");
+    },
   });
 }
 
@@ -75,7 +92,10 @@ export function useAddAsset() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Aset berhasil ditambahkan");
+    },
   });
 }
 
@@ -84,7 +104,10 @@ export function useDeleteAsset() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/networth/assets/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Aset berhasil dihapus");
+    },
   });
 }
 
@@ -97,7 +120,10 @@ export function useAddLiability() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Hutang berhasil ditambahkan");
+    },
   });
 }
 
@@ -106,6 +132,9 @@ export function useDeleteLiability() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/networth/liabilities/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["networth"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["networth"] });
+      toast.success("Hutang berhasil dihapus");
+    },
   });
 }

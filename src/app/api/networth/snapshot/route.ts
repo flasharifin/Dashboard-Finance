@@ -12,7 +12,7 @@ export async function GET() {
   const snapshots = await db.netWorthSnapshot.findMany({
     where: { userId: session.user.id },
     orderBy: { snapshotDate: "asc" },
-    take: 24,
+    take: 120,
   });
 
   return NextResponse.json({ data: snapshots });
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
       totalAssets,
       totalLiabilities,
       netValue,
+      portfolioValue: portfolioValueIDR > 0 ? portfolioValueIDR : undefined,
     },
   });
 

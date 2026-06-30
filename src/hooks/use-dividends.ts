@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function useDividends() {
   return useQuery({
@@ -16,7 +17,10 @@ export function useAddDividend() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dividends"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dividends"] });
+      toast.success("Dividen berhasil ditambahkan");
+    },
   });
 }
 
@@ -29,7 +33,10 @@ export function useUpdateDividend() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dividends"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dividends"] });
+      toast.success("Dividen berhasil diperbarui");
+    },
   });
 }
 
@@ -38,6 +45,9 @@ export function useDeleteDividend() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/dividends/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dividends"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dividends"] });
+      toast.success("Dividen berhasil dihapus");
+    },
   });
 }

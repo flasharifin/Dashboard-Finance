@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
 import { calcUnits } from "@/lib/utils";
 
@@ -92,7 +93,11 @@ export function useAddPortfolio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      toast.success("Posisi berhasil ditambahkan");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -105,7 +110,11 @@ export function useUpdatePortfolio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      toast.success("Posisi berhasil diperbarui");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -114,6 +123,9 @@ export function useDeletePortfolio() {
   return useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/portfolio/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      toast.success("Posisi berhasil dihapus");
+    },
   });
 }

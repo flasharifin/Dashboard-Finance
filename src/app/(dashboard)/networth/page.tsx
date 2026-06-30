@@ -73,7 +73,7 @@ const EXCHANGE_BADGE: Record<string, string> = {
 
 type Asset = { id: string; name: string; category: string; value: number | string; note: string | null };
 type Liability = { id: string; name: string; category: string; amount: number | string; note: string | null };
-type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string };
+type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string; portfolioValue: number | string | null };
 
 // Interval snapshot otomatis: 1 = setiap bulan, 2 = setiap 2 bulan, dst
 const AUTO_SNAPSHOT_INTERVAL_MONTHS = 1;
@@ -201,11 +201,13 @@ export default function NetWorthPage() {
     setEditLiability(null);
   }
 
+  const showPortoLine = (snapshots as Snapshot[]).some((s) => s.portfolioValue != null);
   const chartData = (snapshots as Snapshot[]).map((s) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
     "Net Worth": Number(s.netValue),
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
+    ...(s.portfolioValue != null ? { Porto: Number(s.portfolioValue) } : {}),
   }));
 
   return (
@@ -290,6 +292,7 @@ export default function NetWorthPage() {
                   <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                   <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+                  {showPortoLine && <Line dataKey="Porto" stroke="#8b5cf6" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
                 </LineChart>
               </ResponsiveContainer>
             )}

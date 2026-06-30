@@ -12,7 +12,7 @@ export async function GET() {
 
   const dividends = await db.dividend.findMany({
     where: { userId: session.user.id },
-    orderBy: { paymentDate: "desc" },
+    orderBy: { paymentDate: { sort: "desc", nulls: "last" } },
     include: { portfolio: { select: { lot: true, avgPrice: true } } },
   });
 
