@@ -74,7 +74,8 @@ export default function PortfolioPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const payload = {
-      stockCode: form.get("stockCode") as string,
+      // stockCode di-disabled saat edit → ambil dari state, bukan form
+      stockCode: editing ? editing.stockCode : (form.get("stockCode") as string),
       lot: Number(form.get("lot")),
       avgPrice: Number(form.get("avgPrice")),
       exchange,

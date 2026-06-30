@@ -68,15 +68,22 @@ export function usePortfolio() {
   });
 }
 
+async function apiFetch(url: string, options: RequestInit) {
+  const res = await fetch(url, options);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? "Terjadi kesalahan");
+  return json;
+}
+
 export function useAddPortfolio() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      fetch("/api/portfolio", {
+      apiFetch("/api/portfolio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
   });
 }
@@ -85,11 +92,11 @@ export function useUpdatePortfolio() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
-      fetch(`/api/portfolio/${id}`, {
+      apiFetch(`/api/portfolio/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
   });
 }
