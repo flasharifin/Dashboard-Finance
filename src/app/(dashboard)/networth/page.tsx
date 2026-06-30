@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +34,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Trash2, Plus, Camera, TrendingUp, Pencil } from "lucide-react";
+import { Trash2, Plus, Camera, TrendingUp, Pencil, Wallet, CreditCard } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { PortfolioWithCalc } from "@/types";
 import {
@@ -93,6 +92,8 @@ export default function NetWorthPage() {
   const addLiabilityMutation = useAddLiability();
   const updateLiabilityMutation = useUpdateLiability();
   const deleteLiabilityMutation = useDeleteLiability();
+
+  const [activeTab, setActiveTab] = useState<"assets" | "liabilities">("assets");
 
   // Add dialogs
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -346,14 +347,52 @@ export default function NetWorthPage() {
         </Card>
       )}
 
-      <Tabs defaultValue="assets">
-        <TabsList>
-          <TabsTrigger value="assets">Aset</TabsTrigger>
-          <TabsTrigger value="liabilities">Hutang</TabsTrigger>
-        </TabsList>
+      {/* ── Tab Navigation (underline style) ────────────────────── */}
+      <div className="border-b">
+        <nav className="flex">
+          {([
+            {
+              id: "assets" as const,
+              label: "Aset",
+              count: (networth?.assets ?? []).length + (portfolios.length > 0 ? 1 : 0),
+              icon: <Wallet className="h-4 w-4" />,
+            },
+            {
+              id: "liabilities" as const,
+              label: "Hutang",
+              count: (networth?.liabilities ?? []).length,
+              icon: <CreditCard className="h-4 w-4" />,
+            },
+          ]).map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors select-none",
+                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                <span className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
+                  active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                )}>
+                  {tab.count}
+                </span>
+                {active && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
         {/* ── Aset Tab ─────────────────────────────────────────── */}
-        <TabsContent value="assets" className="space-y-4 pt-4">
+        {activeTab === "assets" && <div className="space-y-4 pt-2">
           <div className="rounded-md border bg-muted/30 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
               <div className="flex items-center gap-2">
@@ -425,10 +464,10 @@ export default function NetWorthPage() {
           {(networth?.assets ?? []).length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">Belum ada aset lainnya.</p>
           )}
-        </TabsContent>
+        </div>}
 
         {/* ── Hutang Tab ───────────────────────────────────────── */}
-        <TabsContent value="liabilities" className="space-y-3 pt-4">
+        {activeTab === "liabilities" && <div className="space-y-3 pt-2">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setLiabilityDialogOpen(true)}>
               <Plus className="mr-1 h-4 w-4" />Tambah Hutang
@@ -459,8 +498,7 @@ export default function NetWorthPage() {
           {(networth?.liabilities ?? []).length === 0 && (
             <p className="py-8 text-center text-muted-foreground">Belum ada data hutang.</p>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>}
 
       {/* ── Dialog Tambah Aset ──────────────────────────────────── */}
       <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>
