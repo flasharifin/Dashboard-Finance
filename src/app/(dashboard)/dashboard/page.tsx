@@ -67,11 +67,14 @@ export default function DashboardPage() {
         )
     : 0;
 
-  // Total kekayaan = aset manual (net worth) + portofolio investasi
-  const manualNetWorth = networth?.netValue ?? 0;
-  const totalWealth = manualNetWorth + portfolioValueIDR;
-  const targetProgress = Math.min((totalWealth / TARGET_100M) * 100, 100);
-  const targetRemaining = Math.max(TARGET_100M - totalWealth, 0);
+  // Sama dengan formula di halaman networth: porto + manual - hutang
+  const manualAssetsTotal = networth?.totalAssets ?? 0;
+  const totalLiabilities = networth?.totalLiabilities ?? 0;
+  const totalAssetsAll = portfolioValueIDR + manualAssetsTotal;
+  const combinedNetWorth = totalAssetsAll - totalLiabilities;
+
+  const targetProgress = Math.min((combinedNetWorth / TARGET_100M) * 100, 100);
+  const targetRemaining = Math.max(TARGET_100M - combinedNetWorth, 0);
 
   const isLoading = networthLoading || portfolioLoading;
 
@@ -115,16 +118,16 @@ export default function DashboardPage() {
           href="/dividends"
         />
         <SummaryCard
-          title="Net Worth (Manual)"
-          value={networth ? formatCurrency(networth.netValue, "IDR") : null}
+          title="Net Worth"
+          value={networth ? formatCurrency(combinedNetWorth, "IDR") : null}
           sub={
             networth
-              ? `Aset: ${formatCurrency(networth.totalAssets, "IDR")} · Hutang: ${formatCurrency(networth.totalLiabilities, "IDR")}`
+              ? `Aset: ${formatCurrency(totalAssetsAll, "IDR")} · Hutang: ${formatCurrency(totalLiabilities, "IDR")}`
               : null
           }
           icon={<Wallet className="h-4 w-4" />}
-          valueClass={(networth?.netValue ?? 0) >= 0 ? "" : "text-red-600"}
-          loading={networthLoading}
+          valueClass={combinedNetWorth >= 0 ? "" : "text-red-600"}
+          loading={isLoading}
           href="/networth"
         />
       </div>
@@ -173,10 +176,10 @@ export default function DashboardPage() {
 
                 <div className="flex items-end justify-between text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Total kekayaan saat ini</p>
-                    <p className="text-lg font-bold">{formatCurrency(totalWealth)}</p>
+                    <p className="text-xs text-muted-foreground">Net Worth saat ini</p>
+                    <p className="text-lg font-bold">{formatCurrency(combinedNetWorth)}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Porto: {formatCurrency(portfolioValueIDR)} + Manual: {formatCurrency(Math.max(manualNetWorth, 0))}
+                      Porto: {formatCurrency(portfolioValueIDR)} + Manual: {formatCurrency(manualAssetsTotal)} − Hutang: {formatCurrency(totalLiabilities)}
                     </p>
                   </div>
                   <div className="text-right">
