@@ -28,7 +28,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Trash2, Plus, Camera } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -290,7 +289,9 @@ export default function NetWorthPage() {
               <Label>Kategori</Label>
               <Select value={assetCategory} onValueChange={(v) => setAssetCategory(v ?? "")} required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori..." />
+                  <span className={!assetCategory ? "text-muted-foreground" : undefined}>
+                    {ASSET_CATEGORIES.find((c) => c.value === assetCategory)?.label ?? "Pilih kategori..."}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {ASSET_CATEGORIES.map((c) => (
@@ -329,7 +330,9 @@ export default function NetWorthPage() {
               <Label>Kategori</Label>
               <Select value={liabilityCategory} onValueChange={(v) => setLiabilityCategory(v ?? "")} required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori..." />
+                  <span className={!liabilityCategory ? "text-muted-foreground" : undefined}>
+                    {LIABILITY_CATEGORIES.find((c) => c.value === liabilityCategory)?.label ?? "Pilih kategori..."}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {LIABILITY_CATEGORIES.map((c) => (

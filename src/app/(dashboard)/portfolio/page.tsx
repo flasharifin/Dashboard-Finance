@@ -25,7 +25,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
@@ -143,7 +142,7 @@ export default function PortfolioPage() {
                 disabled={!!editing}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{EXCHANGE_OPTIONS.find((o) => o.value === exchange)?.label ?? exchange}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {EXCHANGE_OPTIONS.map((opt) => (

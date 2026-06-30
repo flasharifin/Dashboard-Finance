@@ -21,7 +21,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Table,
@@ -227,12 +226,19 @@ export default function DividendsPage() {
               <Label>Emiten</Label>
               <Select value={selectedPortfolioId} onValueChange={(v) => setSelectedPortfolioId(v ?? "")} required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih saham..." />
+                  <span className={!selectedPortfolioId ? "text-muted-foreground" : undefined}>
+                    {selectedPortfolioId
+                      ? (() => {
+                          const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedPortfolioId);
+                          return p ? `${p.stockCode} — ${p.lot} ${p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}` : selectedPortfolioId;
+                        })()
+                      : "Pilih saham..."}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {portfolios.map((p: PortfolioWithCalc) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.stockCode} ({p.lot} lot)
+                      {p.stockCode} — {p.lot} {p.exchange === "IDX" ? "lot" : p.exchange === "CRYPTO" ? "unit" : "shares"}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -17,7 +17,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 
 const EXCHANGE_BADGE: Record<string, string> = {
@@ -83,7 +82,14 @@ export default function DcaPage() {
               <Label>Pilih Aset</Label>
               <Select value={selectedId} onValueChange={(v) => setSelectedId(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih aset dari portfolio..." />
+                  <span className={!selectedId ? "text-muted-foreground" : undefined}>
+                    {selectedId
+                      ? (() => {
+                          const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedId);
+                          return p ? `[${p.exchange}] ${p.stockCode} — ${formatCurrency(p.avgPrice, p.currency)}` : selectedId;
+                        })()
+                      : "Pilih aset dari portfolio..."}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {portfolios.map((p: PortfolioWithCalc) => (
