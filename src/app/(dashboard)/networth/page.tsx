@@ -75,9 +75,12 @@ type Asset = { id: string; name: string; category: string; value: number | strin
 type Liability = { id: string; name: string; category: string; amount: number | string; note: string | null };
 type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string };
 
+// Interval snapshot otomatis: 1 = setiap bulan, 2 = setiap 2 bulan, dst
+const AUTO_SNAPSHOT_INTERVAL_MONTHS = 1;
+
 export default function NetWorthPage() {
   const { data: networth, isLoading } = useNetWorth();
-  const { data: snapshots = [] } = useNetWorthSnapshots();
+  const { data: snapshots = [], isLoading: snapshotsLoading } = useNetWorthSnapshots();
   const { data: portfolios = [], isLoading: portfolioLoading } = usePortfolio();
   const { data: rateData } = useExchangeRate();
   const usdToIdr = rateData?.USDIDR ?? 16000;
@@ -103,7 +106,7 @@ export default function NetWorthPage() {
   const [editLiability, setEditLiability] = useState<Liability | null>(null);
   const [editLiabilityCategory, setEditLiabilityCategory] = useState("");
 
-  // Auto-snapshot tracking (don't create twice in one session)
+  // Prevent duplicate auto-snapshot in one page session
   const autoSnapshotDone = useRef(false);
 
   // Nilai portfolio dalam IDR
@@ -118,24 +121,31 @@ export default function NetWorthPage() {
   const netValue = totalAssetsAll - totalLiabilities;
   const isPositive = netValue >= 0;
 
-  // Auto monthly snapshot: jika belum ada snapshot bulan ini, buat otomatis
+  // Auto snapshot: hanya berjalan setelah snapshots & portfolio selesai di-fetch
+  // Interval dikontrol oleh AUTO_SNAPSHOT_INTERVAL_MONTHS di atas
   useEffect(() => {
     if (autoSnapshotDone.current) return;
-    if (portfolioLoading || !rateData) return;
+    // Tunggu semua data selesai loading sebelum mengecek
+    if (snapshotsLoading || portfolioLoading || !rateData) return;
     if (createSnapshotMutation.isPending) return;
 
     const now = new Date();
+    // Ambil snapshot terbaru (array terurut ascending dari API)
     const lastSnapshot = snapshots.length > 0
-      ? new Date((snapshots as Snapshot[])[snapshots.length - 1].snapshotDate)
+      ? new Date(snapshots[snapshots.length - 1].snapshotDate)
       : null;
 
-    // Auto-create jika belum ada snapshot atau snapshot terakhir > 30 hari lalu
-    const shouldCreate = !lastSnapshot || (now.getTime() - lastSnapshot.getTime() > 30 * 24 * 60 * 60 * 1000);
-    if (shouldCreate && portfolioValueIDR >= 0) {
+    // Hitung selisih bulan kalender (bukan 30 hari)
+    const monthsSince = lastSnapshot
+      ? (now.getFullYear() - lastSnapshot.getFullYear()) * 12 +
+        (now.getMonth() - lastSnapshot.getMonth())
+      : Infinity;
+
+    if (monthsSince >= AUTO_SNAPSHOT_INTERVAL_MONTHS) {
       autoSnapshotDone.current = true;
       createSnapshotMutation.mutate(portfolioValueIDR);
     }
-  }, [snapshots, portfolioLoading, portfolioValueIDR, rateData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snapshotsLoading, portfolioLoading, portfolioValueIDR, rateData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

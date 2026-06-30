@@ -8,7 +8,7 @@ export function useNetWorth() {
 }
 
 export function useNetWorthSnapshots() {
-  return useQuery({
+  return useQuery<{ id: string; snapshotDate: string; netValue: string | number; totalAssets: string | number; totalLiabilities: string | number }[]>({
     queryKey: ["networth-snapshots"],
     queryFn: () =>
       fetch("/api/networth/snapshot").then((r) => r.json()).then((r) => r.data ?? []),
