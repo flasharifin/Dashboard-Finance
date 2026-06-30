@@ -26,9 +26,9 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
-import { calcAvgPrice, formatCurrency, getUnitLabel } from "@/lib/utils";
+import { calcAvgPrice, formatCurrency, getUnitLabel, exportToCSV } from "@/lib/utils";
 
 const EXCHANGE_OPTIONS: { value: Exchange; label: string; currency: Currency; hint: string }[] = [
   { value: "IDX", label: "IDX (Bursa Indonesia)", currency: "IDR", hint: "Contoh: BBCA, TLKM, GOTO" },
@@ -126,10 +126,27 @@ export default function PortfolioPage() {
           <h1 className="text-2xl font-bold">Portfolio</h1>
           <p className="text-muted-foreground">Saham IDX, US Stocks & Crypto</p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Aset
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportToCSV(`portfolio-${new Date().toISOString().slice(0,10)}.csv`,
+              portfolios.map((p: PortfolioWithCalc) => ({
+                Kode: p.stockCode, Exchange: p.exchange, Platform: p.platform,
+                Lot: p.lot, "Avg Price": p.avgPrice, "Harga Pasar": p.marketPrice ?? "",
+                "Nilai Pasar": p.marketValue ?? "", "P&L": p.unrealizedPnl ?? "",
+                "P&L %": p.unrealizedPnlPct?.toFixed(2) ?? "", Sektor: p.sector ?? "", Catatan: p.note ?? "",
+              }))
+            )}
+            disabled={portfolios.length === 0}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Aset
+          </Button>
+        </div>
       </div>
 
       <PortfolioSummaryCards portfolios={portfolios} usdToIdr={usdToIdr} />

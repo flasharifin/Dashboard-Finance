@@ -30,8 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Banknote } from "lucide-react";
-import { formatCurrency, formatPercent, calcDividendYield, calcNetDps, calcReceivedAmount } from "@/lib/utils";
+import { Plus, Trash2, Banknote, Download } from "lucide-react";
+import { formatCurrency, formatPercent, calcDividendYield, calcNetDps, calcReceivedAmount, exportToCSV, cn } from "@/lib/utils";
 import type { PortfolioWithCalc } from "@/types";
 
 export default function DividendsPage() {
@@ -53,6 +53,25 @@ export default function DividendsPage() {
     (s: number, d: { receivedAmount: number | string | null }) => s + Number(d.receivedAmount ?? 0),
     0
   );
+
+  // ── Quarterly breakdown tahun ini ─────────────────────────────
+  const quarterlyThisYear = [1, 2, 3, 4].map((q) => {
+    const months = [(q - 1) * 3 + 1, (q - 1) * 3 + 2, q * 3];
+    const total = dividends
+      .filter((d: { paymentDate: string | null }) => {
+        if (!d.paymentDate) return false;
+        const dt = new Date(d.paymentDate);
+        return dt.getFullYear() === currentYear && months.includes(dt.getMonth() + 1);
+      })
+      .reduce((s: number, d: { receivedAmount: number | string | null }) => s + Number(d.receivedAmount ?? 0), 0);
+    return { quarter: `Q${q}`, total };
+  });
+
+  // ── Proyeksi tahunan ─────────────────────────────────────────
+  const currentMonth = new Date().getMonth() + 1;
+  const projectedAnnual = currentMonth > 0 && totalThisYear > 0
+    ? (totalThisYear / currentMonth) * 12
+    : 0;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,10 +109,36 @@ export default function DividendsPage() {
           <h1 className="text-2xl font-bold">Dividen</h1>
           <p className="text-muted-foreground">Pantau dividen yang diterima</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Catat Dividen
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportToCSV(`dividen-${new Date().toISOString().slice(0,10)}.csv`,
+              dividends.map((d: {
+                stockCode: string; dps: number | string; taxPct: number | string;
+                receivedAmount: number | string | null; paymentDate: string | null;
+                cumDate: string | null; exDate: string | null; note: string | null;
+              }) => ({
+                Emiten: d.stockCode,
+                "DPS Gross": Number(d.dps),
+                "Pajak %": Number(d.taxPct),
+                "DPS Net": calcNetDps(Number(d.dps), Number(d.taxPct)),
+                "Total Diterima": Number(d.receivedAmount ?? 0),
+                "Cum Date": d.cumDate ? new Date(d.cumDate).toLocaleDateString("id-ID") : "",
+                "Ex Date": d.exDate ? new Date(d.exDate).toLocaleDateString("id-ID") : "",
+                "Payment Date": d.paymentDate ? new Date(d.paymentDate).toLocaleDateString("id-ID") : "",
+                Catatan: d.note ?? "",
+              }))
+            )}
+            disabled={dividends.length === 0}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Catat Dividen
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -134,8 +179,56 @@ export default function DividendsPage() {
         </Card>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      {/* Quarterly + Proyeksi */}
+      {dividends.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Breakdown per Kuartal {currentYear}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {quarterlyThisYear.map(({ quarter, total }) => (
+                <div key={quarter} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{quarter}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 rounded-full bg-muted overflow-hidden w-24">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: totalThisYear > 0 ? `${(total / totalThisYear) * 100}%` : "0%" }}
+                      />
+                    </div>
+                    <span className={cn("font-medium w-28 text-right", total > 0 ? "text-emerald-600" : "text-muted-foreground")}>
+                      {total > 0 ? formatCurrency(total) : "—"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Proyeksi Dividen Tahunan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(projectedAnnual)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Estimasi berdasarkan rata-rata bulan Jan–{new Date().toLocaleString("id-ID", { month: "short" })} {currentYear}
+                </p>
+              </div>
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-0.5">
+                <p>Diterima tahun ini: <b className="text-foreground">{formatCurrency(totalThisYear)}</b></p>
+                <p>Bulan berjalan: <b className="text-foreground">{currentMonth}</b> dari 12 bulan</p>
+                <p>Rata-rata per bulan: <b className="text-foreground">{formatCurrency(totalThisYear / currentMonth)}</b></p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow>
               <TableHead>Emiten</TableHead>

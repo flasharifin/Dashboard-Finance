@@ -18,8 +18,12 @@ export function useNetWorthSnapshots() {
 export function useCreateSnapshot() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      fetch("/api/networth/snapshot", { method: "POST" }).then((r) => r.json()),
+    mutationFn: (portfolioValueIDR: number) =>
+      fetch("/api/networth/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portfolioValueIDR }),
+      }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["networth-snapshots"] });
       queryClient.invalidateQueries({ queryKey: ["networth"] });

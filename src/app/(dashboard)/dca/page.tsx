@@ -3,21 +3,27 @@
 import { useState } from "react";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { useExchangeRate } from "@/hooks/use-exchange-rate";
+import {
+  useDcaPlans, useAddDcaPlan, useUpdateDcaPlan, useDeleteDcaPlan,
+  useDcaTransactions, useAddDcaTransaction, useDeleteDcaTransaction,
+} from "@/hooks/use-dca";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, calcAvgPrice, getUnitLabel, cn } from "@/lib/utils";
-import { Calculator } from "lucide-react";
-import type { PortfolioWithCalc } from "@/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
+import { formatCurrency, calcAvgPrice, getUnitLabel, cn } from "@/lib/utils";
+import { Calculator, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import type { PortfolioWithCalc } from "@/types";
 
 const EXCHANGE_BADGE: Record<string, string> = {
   IDX: "bg-blue-100 text-blue-700",
@@ -25,14 +31,39 @@ const EXCHANGE_BADGE: Record<string, string> = {
   CRYPTO: "bg-amber-100 text-amber-700",
 };
 
+const FREQ_LABEL: Record<string, string> = {
+  weekly: "Mingguan",
+  monthly: "Bulanan",
+  custom: "Custom",
+};
+
 export default function DcaPage() {
   const { data: portfolios = [] } = usePortfolio();
   const { data: rateData } = useExchangeRate();
+  const { data: plans = [], isLoading: plansLoading } = useDcaPlans();
+  const { data: transactions = [], isLoading: txLoading } = useDcaTransactions();
   const usdToIdr = rateData?.USDIDR ?? 16000;
 
+  const addPlanMutation = useAddDcaPlan();
+  const updatePlanMutation = useUpdateDcaPlan();
+  const deletePlanMutation = useDeleteDcaPlan();
+  const addTxMutation = useAddDcaTransaction();
+  const deleteTxMutation = useDeleteDcaTransaction();
+
+  // ── Kalkulator state ──────────────────────────────────────────────
   const [selectedId, setSelectedId] = useState("");
   const [newLot, setNewLot] = useState("");
   const [newPrice, setNewPrice] = useState("");
+
+  // ── Plan dialog state ─────────────────────────────────────────────
+  const [planDialog, setPlanDialog] = useState(false);
+  const [planPortfolioId, setPlanPortfolioId] = useState("");
+  const [planFreq, setPlanFreq] = useState("monthly");
+
+  // ── Transaction dialog state ──────────────────────────────────────
+  const [txDialog, setTxDialog] = useState(false);
+  const [txPortfolioId, setTxPortfolioId] = useState("");
+  const [txPlanId, setTxPlanId] = useState("");
 
   const selected = portfolios.find((p: PortfolioWithCalc) => p.id === selectedId);
   const unitLabel = selected ? getUnitLabel(selected.exchange) : "lot";
@@ -40,12 +71,7 @@ export default function DcaPage() {
   const simResult =
     selected && newLot && newPrice
       ? {
-          newAvgPrice: calcAvgPrice(
-            selected.lot,
-            selected.avgPrice,
-            Number(newLot),
-            Number(newPrice)
-          ),
+          newAvgPrice: calcAvgPrice(selected.lot, selected.avgPrice, Number(newLot), Number(newPrice)),
           totalQty: selected.lot + Number(newLot),
           additionalCost: Number(newLot) * Number(newPrice),
           totalCost: selected.totalCost + Number(newLot) * Number(newPrice),
@@ -54,290 +80,519 @@ export default function DcaPage() {
 
   const candidates = portfolios
     .filter((p: PortfolioWithCalc) => p.unrealizedPnlPct !== null && p.unrealizedPnlPct < 0)
-    .sort(
-      (a: PortfolioWithCalc, b: PortfolioWithCalc) =>
-        (a.unrealizedPnlPct ?? 0) - (b.unrealizedPnlPct ?? 0)
-    )
+    .sort((a: PortfolioWithCalc, b: PortfolioWithCalc) => (a.unrealizedPnlPct ?? 0) - (b.unrealizedPnlPct ?? 0))
     .slice(0, 5);
+
+  // ── Handlers ──────────────────────────────────────────────────────
+  async function handleAddPlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const portfolio = portfolios.find((p: PortfolioWithCalc) => p.id === planPortfolioId);
+    if (!portfolio) return;
+    await addPlanMutation.mutateAsync({
+      portfolioId: planPortfolioId,
+      stockCode: portfolio.stockCode,
+      targetPrice: Number(form.get("targetPrice")),
+      budget: Number(form.get("budget")),
+      frequency: planFreq,
+      nextDate: (form.get("nextDate") as string) || null,
+      note: (form.get("note") as string) || undefined,
+    });
+    setPlanDialog(false);
+    setPlanPortfolioId("");
+    setPlanFreq("monthly");
+  }
+
+  async function handleAddTx(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const portfolio = portfolios.find((p: PortfolioWithCalc) => p.id === txPortfolioId);
+    if (!portfolio) return;
+    await addTxMutation.mutateAsync({
+      portfolioId: txPortfolioId,
+      stockCode: portfolio.stockCode,
+      dcaPlanId: txPlanId || null,
+      lot: Number(form.get("lot")),
+      price: Number(form.get("price")),
+      buyDate: (form.get("buyDate") as string) || undefined,
+      note: (form.get("note") as string) || undefined,
+    });
+    setTxDialog(false);
+    setTxPortfolioId("");
+    setTxPlanId("");
+  }
+
+  const planPortfolio = portfolios.find((p: PortfolioWithCalc) => p.id === planPortfolioId);
+  const txPortfolio = portfolios.find((p: PortfolioWithCalc) => p.id === txPortfolioId);
+  const plansForTxPortfolio = plans.filter((pl: { portfolioId: string }) => pl.portfolioId === txPortfolioId);
+
+  const totalTxCost = transactions.reduce((s: number, t: { totalCost: number | string }) => s + Number(t.totalCost), 0);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">DCA Planner</h1>
-        <p className="text-muted-foreground">
-          Simulasi Dollar Cost Averaging — IDX, US Stocks & Crypto
-        </p>
+        <p className="text-muted-foreground">Simulasi, rencana, dan histori Dollar Cost Averaging</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Calculator className="h-5 w-5" />
-              Kalkulator DCA
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <Tabs defaultValue="calculator">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="calculator" className="flex-1 sm:flex-none">Kalkulator</TabsTrigger>
+          <TabsTrigger value="plans" className="flex-1 sm:flex-none">
+            Rencana
+            {plans.length > 0 && (
+              <Badge className="ml-1.5 h-4 px-1 text-[10px]">{plans.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex-1 sm:flex-none">
+            Histori
+            {transactions.length > 0 && (
+              <Badge className="ml-1.5 h-4 px-1 text-[10px]">{transactions.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── TAB: Kalkulator ─────────────────────────────────────── */}
+        <TabsContent value="calculator" className="mt-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Calculator className="h-5 w-5" />
+                  Kalkulator DCA
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Pilih Aset</Label>
+                  <Select value={selectedId} onValueChange={(v) => setSelectedId(v ?? "")}>
+                    <SelectTrigger>
+                      <span className={!selectedId ? "text-muted-foreground" : undefined}>
+                        {selectedId
+                          ? (() => {
+                              const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedId);
+                              if (!p) return selectedId;
+                              const label = p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode;
+                              return `[${p.exchange}] ${label} — ${formatCurrency(p.avgPrice, p.currency)}`;
+                            })()
+                          : "Pilih aset dari portfolio..."}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {portfolios.map((p: PortfolioWithCalc) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex items-center gap-2">
+                            <span className={cn("rounded px-1 text-xs font-medium", EXCHANGE_BADGE[p.exchange])}>
+                              {p.exchange}
+                            </span>
+                            {p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode} — {formatCurrency(p.avgPrice, p.currency)}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selected && (
+                  <div className="rounded-md bg-muted/40 p-3 text-sm space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Posisi saat ini</span>
+                      <span className="font-medium">
+                        {selected.lot} {unitLabel}
+                        {selected.exchange === "IDX" && <span className="text-muted-foreground ml-1">({selected.units} lembar)</span>}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Avg price</span>
+                      <span className="font-medium">{formatCurrency(selected.avgPrice, selected.currency)}</span>
+                    </div>
+                    {selected.marketPrice && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Harga pasar</span>
+                        <span className="font-medium">{formatCurrency(selected.marketPrice, selected.currency)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{selected?.exchange === "IDX" ? "Lot baru" : selected?.exchange === "US" ? "Shares baru" : "Unit baru"}</Label>
+                    <Input type="number" step="any" min="0" value={newLot} onChange={(e) => setNewLot(e.target.value)} placeholder="10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Harga beli ({selected?.currency ?? "IDR"})</Label>
+                    <Input type="number" step="any" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder={selected?.currency === "USD" ? "150.00" : "8000"} />
+                  </div>
+                </div>
+
+                {simResult && selected && (
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-2.5">
+                    <p className="font-semibold text-sm">Hasil Simulasi</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Avg price baru</span>
+                        <span className="font-bold text-primary text-base">{formatCurrency(simResult.newAvgPrice, selected.currency)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total qty setelah DCA</span>
+                        <span className="font-semibold">{simResult.totalQty} {unitLabel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Biaya tambahan</span>
+                        <span className="font-semibold">
+                          {formatCurrency(simResult.additionalCost, selected.currency)}
+                          {selected.currency === "USD" && <span className="text-muted-foreground ml-1 text-xs">≈ {formatCurrency(simResult.additionalCost * usdToIdr)}</span>}
+                        </span>
+                      </div>
+                      {selected.marketPrice && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gap ke harga pasar</span>
+                          <span className={simResult.newAvgPrice > selected.marketPrice ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>
+                            {formatCurrency(Math.abs(simResult.newAvgPrice - selected.marketPrice), selected.currency)}{" "}
+                            ({simResult.newAvgPrice > selected.marketPrice ? "masih rugi" : "sudah profit"})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!selected && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Pilih aset dari portfolio untuk memulai simulasi.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Kandidat DCA (Posisi Merah)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {candidates.map((p: PortfolioWithCalc) => (
+                      <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={cn("text-xs px-1.5", EXCHANGE_BADGE[p.exchange])}>
+                            {p.exchange}
+                          </Badge>
+                          <span className="font-medium">{p.stockCode}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-600">{p.unrealizedPnlPct?.toFixed(2)}%</span>
+                          <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setSelectedId(p.id)}>
+                            Simulasi
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {candidates.length === 0 && (
+                      <p className="text-muted-foreground text-sm py-2">Semua posisi sedang profit.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-base">Info Exchange</CardTitle></CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">IDX</span>
+                      <span>Bursa Efek Indonesia — lot × 100 lembar, harga dalam IDR</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">US</span>
+                      <span>NYSE / NASDAQ — per share, harga dalam USD</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">Crypto</span>
+                      <span>BTC, ETH, SOL, dll — per coin, harga dalam USD</span>
+                    </div>
+                  </div>
+                  <Separator />
+                  <p><b className="text-foreground">Kurs saat ini:</b> 1 USD = {formatCurrency(usdToIdr)}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── TAB: Rencana DCA ─────────────────────────────────────── */}
+        <TabsContent value="plans" className="mt-6 space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setPlanDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Buat Rencana
+            </Button>
+          </div>
+
+          {plansLoading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : plans.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Belum ada rencana DCA. Buat rencana untuk melacak jadwal dan target beli.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {plans.map((plan: {
+                id: string; stockCode: string; targetPrice: number | string;
+                budget: number | string; frequency: string; nextDate: string | null;
+                isActive: boolean; note: string | null;
+              }) => (
+                <Card key={plan.id} className={cn(!plan.isActive && "opacity-60")}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold">{plan.stockCode}</span>
+                          <Badge variant="outline" className="text-xs">{FREQ_LABEL[plan.frequency] ?? plan.frequency}</Badge>
+                          {!plan.isActive && <Badge variant="secondary" className="text-xs">Non-aktif</Badge>}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          <span>Target: <b className="text-foreground">{formatCurrency(Number(plan.targetPrice))}</b></span>
+                          <span>Budget: <b className="text-foreground">{formatCurrency(Number(plan.budget))}</b></span>
+                          {plan.nextDate && (
+                            <span>Jadwal: <b className="text-foreground">{new Date(plan.nextDate).toLocaleDateString("id-ID")}</b></span>
+                          )}
+                        </div>
+                        {plan.note && <p className="text-xs text-muted-foreground">{plan.note}</p>}
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7"
+                          title={plan.isActive ? "Non-aktifkan" : "Aktifkan"}
+                          onClick={() => updatePlanMutation.mutate({ id: plan.id, isActive: !plan.isActive })}
+                        >
+                          {plan.isActive
+                            ? <ToggleRight className="h-4 w-4 text-emerald-600" />
+                            : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => { if (confirm(`Hapus rencana DCA ${plan.stockCode}?`)) deletePlanMutation.mutate(plan.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── TAB: Histori ─────────────────────────────────────────── */}
+        <TabsContent value="history" className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            {transactions.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Total investasi DCA: <b className="text-foreground">{formatCurrency(totalTxCost)}</b>
+              </p>
+            )}
+            <Button className="ml-auto" onClick={() => setTxDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Catat Pembelian
+            </Button>
+          </div>
+
+          {txLoading ? (
+            <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : transactions.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Belum ada histori pembelian DCA. Catat setiap transaksi DCA Anda.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full min-w-[540px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-2.5 text-left font-medium">Aset</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Qty</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Harga</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Total</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Tanggal</th>
+                    <th className="px-4 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {transactions.map((tx: {
+                    id: string; stockCode: string; lot: number | string;
+                    price: number | string; totalCost: number | string;
+                    buyDate: string; note: string | null;
+                  }) => (
+                    <tr key={tx.id}>
+                      <td className="px-4 py-2.5 font-medium">{tx.stockCode}</td>
+                      <td className="px-4 py-2.5 text-right">{Number(tx.lot)}</td>
+                      <td className="px-4 py-2.5 text-right">{formatCurrency(Number(tx.price))}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(Number(tx.totalCost))}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        {new Date(tx.buyDate).toLocaleDateString("id-ID")}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => { if (confirm("Hapus catatan ini?")) deleteTxMutation.mutate(tx.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Dialog: Tambah Rencana ────────────────────────────────── */}
+      <Dialog open={planDialog} onOpenChange={setPlanDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Buat Rencana DCA</DialogTitle></DialogHeader>
+          <form key={planDialog ? "open" : "closed"} onSubmit={handleAddPlan} className="space-y-4">
             <div className="space-y-2">
-              <Label>Pilih Aset</Label>
-              <Select value={selectedId} onValueChange={(v) => setSelectedId(v ?? "")}>
+              <Label>Aset</Label>
+              <Select value={planPortfolioId} onValueChange={(v) => setPlanPortfolioId(v ?? "")} required>
                 <SelectTrigger>
-                  <span className={!selectedId ? "text-muted-foreground" : undefined}>
-                    {selectedId
-                      ? (() => {
-                          const p = portfolios.find((x: PortfolioWithCalc) => x.id === selectedId);
-                          if (!p) return selectedId;
-                          const label = p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode;
-                          return `[${p.exchange}] ${label} — ${formatCurrency(p.avgPrice, p.currency)}`;
-                        })()
-                      : "Pilih aset dari portfolio..."}
+                  <span className={!planPortfolioId ? "text-muted-foreground" : undefined}>
+                    {planPortfolio
+                      ? `${planPortfolio.stockCode}${planPortfolio.platform ? ` (${planPortfolio.platform})` : ""}`
+                      : "Pilih aset..."}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {portfolios.map((p: PortfolioWithCalc) => (
                     <SelectItem key={p.id} value={p.id}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "rounded px-1 text-xs font-medium",
-                            EXCHANGE_BADGE[p.exchange]
-                          )}
-                        >
-                          {p.exchange}
-                        </span>
-                        {p.platform ? `${p.stockCode} (${p.platform})` : p.stockCode} — {formatCurrency(p.avgPrice, p.currency)}
-                      </div>
+                      {p.stockCode}{p.platform ? ` (${p.platform})` : ""} — {p.exchange}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {selected && (
-              <div className="rounded-md bg-muted/40 p-3 text-sm space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Exchange</span>
-                  <Badge
-                    variant="outline"
-                    className={cn("text-xs", EXCHANGE_BADGE[selected.exchange])}
-                  >
-                    {selected.exchange}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Posisi saat ini</span>
-                  <span className="font-medium">
-                    {selected.lot} {unitLabel}
-                    {selected.exchange === "IDX" && (
-                      <span className="text-muted-foreground ml-1">
-                        ({selected.units} lembar)
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg price</span>
-                  <span className="font-medium">
-                    {formatCurrency(selected.avgPrice, selected.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total modal</span>
-                  <span className="font-medium">
-                    {formatCurrency(selected.totalCost, selected.currency)}
-                    {selected.currency === "USD" && (
-                      <span className="text-muted-foreground ml-1 text-xs">
-                        ≈ {formatCurrency(selected.totalCost * usdToIdr, "IDR")}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {selected.marketPrice && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Harga pasar</span>
-                    <span className="font-medium">
-                      {formatCurrency(selected.marketPrice, selected.currency)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <Separator />
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>
-                  {selected?.exchange === "IDX"
-                    ? "Lot baru"
-                    : selected?.exchange === "US"
-                    ? "Shares baru"
-                    : "Unit baru"}
-                </Label>
-                <Input
-                  type="number"
-                  step={selected?.exchange === "CRYPTO" ? "0.00000001" : "1"}
-                  min="0"
-                  value={newLot}
-                  onChange={(e) => setNewLot(e.target.value)}
-                  placeholder={selected?.exchange === "CRYPTO" ? "0.5" : "10"}
-                />
+                <Label>Target Harga ({planPortfolio?.currency ?? "IDR"})</Label>
+                <Input name="targetPrice" type="number" step="any" min="0" required placeholder={planPortfolio?.currency === "USD" ? "150" : "8000"} />
               </div>
               <div className="space-y-2">
-                <Label>
-                  Harga beli ({selected?.currency ?? "IDR"}/
-                  {selected ? (selected.exchange === "IDX" ? "lembar" : unitLabel) : "unit"})
-                </Label>
-                <Input
-                  type="number"
-                  step="0.00000001"
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  placeholder={selected?.currency === "USD" ? "150.00" : "8000"}
-                />
+                <Label>Budget (IDR)</Label>
+                <Input name="budget" type="number" step="any" min="0" required placeholder="1000000" />
               </div>
             </div>
-
-            {simResult && selected && (
-              <div className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-2.5">
-                <p className="font-semibold text-sm">Hasil Simulasi</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Avg price baru</span>
-                    <span className="font-bold text-primary text-base">
-                      {formatCurrency(simResult.newAvgPrice, selected.currency)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total qty setelah DCA</span>
-                    <span className="font-semibold">
-                      {simResult.totalQty} {unitLabel}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Biaya tambahan</span>
-                    <span className="font-semibold">
-                      {formatCurrency(simResult.additionalCost, selected.currency)}
-                      {selected.currency === "USD" && (
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          ≈ {formatCurrency(simResult.additionalCost * usdToIdr, "IDR")}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total investasi</span>
-                    <span className="font-semibold">
-                      {formatCurrency(simResult.totalCost, selected.currency)}
-                    </span>
-                  </div>
-                  {selected.marketPrice && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Gap ke harga pasar</span>
-                      <span
-                        className={
-                          simResult.newAvgPrice > selected.marketPrice
-                            ? "font-semibold text-red-600"
-                            : "font-semibold text-emerald-600"
-                        }
-                      >
-                        {formatCurrency(
-                          Math.abs(simResult.newAvgPrice - selected.marketPrice),
-                          selected.currency
-                        )}{" "}
-                        (
-                        {simResult.newAvgPrice > selected.marketPrice
-                          ? "masih rugi"
-                          : "sudah profit"}
-                        )
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!selected && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Pilih aset dari portfolio untuk memulai simulasi.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Kandidat DCA (Posisi Merah)</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                {candidates.map((p: PortfolioWithCalc) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={cn("text-xs px-1.5", EXCHANGE_BADGE[p.exchange])}
-                      >
-                        {p.exchange}
-                      </Badge>
-                      <span className="font-medium">{p.stockCode}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-red-600">
-                        {p.unrealizedPnlPct?.toFixed(2)}%
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => setSelectedId(p.id)}
-                      >
-                        Simulasi
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {candidates.length === 0 && (
-                  <p className="text-muted-foreground text-sm py-2">
-                    Semua posisi sedang profit.
-                  </p>
-                )}
+                <Label>Frekuensi</Label>
+                <Select value={planFreq} onValueChange={(v) => setPlanFreq(v ?? "monthly")}>
+                  <SelectTrigger><span>{FREQ_LABEL[planFreq]}</span></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Mingguan</SelectItem>
+                    <SelectItem value="monthly">Bulanan</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-2">
+                <Label>Jadwal Berikutnya</Label>
+                <Input name="nextDate" type="date" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Catatan</Label>
+              <Input name="note" placeholder="Opsional" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPlanDialog(false)}>Batal</Button>
+              <Button type="submit" disabled={!planPortfolioId || addPlanMutation.isPending}>Simpan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Info Exchange</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">IDX</span>
-                  <span>Bursa Efek Indonesia — lot × 100 lembar, harga dalam IDR</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">US</span>
-                  <span>NYSE / NASDAQ — per share, harga dalam USD</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">Crypto</span>
-                  <span>BTC, ETH, SOL, dll — per coin, harga dalam USD</span>
-                </div>
+      {/* ── Dialog: Catat Pembelian ───────────────────────────────── */}
+      <Dialog open={txDialog} onOpenChange={setTxDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Catat Pembelian DCA</DialogTitle></DialogHeader>
+          <form key={txDialog ? "open" : "closed"} onSubmit={handleAddTx} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Aset</Label>
+              <Select value={txPortfolioId} onValueChange={(v) => { setTxPortfolioId(v ?? ""); setTxPlanId(""); }} required>
+                <SelectTrigger>
+                  <span className={!txPortfolioId ? "text-muted-foreground" : undefined}>
+                    {txPortfolio
+                      ? `${txPortfolio.stockCode}${txPortfolio.platform ? ` (${txPortfolio.platform})` : ""}`
+                      : "Pilih aset..."}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {portfolios.map((p: PortfolioWithCalc) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.stockCode}{p.platform ? ` (${p.platform})` : ""} — {p.exchange}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {plansForTxPortfolio.length > 0 && (
+              <div className="space-y-2">
+                <Label>Rencana DCA (opsional)</Label>
+                <Select value={txPlanId} onValueChange={(v) => setTxPlanId(v ?? "")}>
+                  <SelectTrigger>
+                    <span className={!txPlanId ? "text-muted-foreground" : undefined}>
+                      {txPlanId
+                        ? (() => {
+                            const pl = plansForTxPortfolio.find((p: { id: string }) => p.id === txPlanId);
+                            return pl ? `Target ${formatCurrency(Number((pl as { targetPrice: number }).targetPrice))}` : txPlanId;
+                          })()
+                        : "Tanpa rencana"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tanpa rencana</SelectItem>
+                    {plansForTxPortfolio.map((pl: { id: string; stockCode: string; targetPrice: number | string; frequency: string }) => (
+                      <SelectItem key={pl.id} value={pl.id}>
+                        {pl.stockCode} — Target {formatCurrency(Number(pl.targetPrice))} ({FREQ_LABEL[pl.frequency]})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Separator />
-              <p>
-                <b className="text-foreground">Kurs saat ini:</b>{" "}
-                1 USD = {formatCurrency(usdToIdr, "IDR")}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Qty / Lot</Label>
+                <Input name="lot" type="number" step="any" min="0" required placeholder="10" />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga Beli ({txPortfolio?.currency ?? "IDR"})</Label>
+                <Input name="price" type="number" step="any" min="0" required placeholder="8000" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Tanggal Beli</Label>
+              <Input name="buyDate" type="date" defaultValue={new Date().toISOString().split("T")[0]} />
+            </div>
+            <div className="space-y-2">
+              <Label>Catatan</Label>
+              <Input name="note" placeholder="Opsional" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTxDialog(false)}>Batal</Button>
+              <Button type="submit" disabled={!txPortfolioId || addTxMutation.isPending}>Catat</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

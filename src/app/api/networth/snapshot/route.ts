@@ -18,18 +18,22 @@ export async function GET() {
   return NextResponse.json({ data: snapshots });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const body = await req.json().catch(() => ({}));
+  const portfolioValueIDR = Number(body.portfolioValueIDR ?? 0);
 
   const [assets, liabilities] = await Promise.all([
     db.asset.findMany({ where: { userId: session.user.id } }),
     db.liability.findMany({ where: { userId: session.user.id } }),
   ]);
 
-  const totalAssets = assets.reduce((sum: number, a: Asset) => sum + Number(a.value), 0);
+  const manualAssets = assets.reduce((sum: number, a: Asset) => sum + Number(a.value), 0);
+  const totalAssets = portfolioValueIDR + manualAssets;
   const totalLiabilities = liabilities.reduce((sum: number, l: Liability) => sum + Number(l.amount), 0);
   const netValue = totalAssets - totalLiabilities;
 

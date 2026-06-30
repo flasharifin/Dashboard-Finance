@@ -82,21 +82,22 @@ export function Sidebar() {
 
       {/* ── Mobile bottom navigation ─────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex border-t bg-background">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
-              isActive(href)
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Icon className={cn("h-5 w-5", isActive(href) && "stroke-[2.5]")} />
-            {label}
-          </Link>
-        ))}
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className={cn("h-[22px] w-[22px]", active && "stroke-[2.5]")} />
+              <span className="text-[9px] font-medium leading-none">{label}</span>
+            </Link>
+          );
+        })}
       </nav>
     </>
   );

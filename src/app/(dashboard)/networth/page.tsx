@@ -146,7 +146,7 @@ export default function NetWorthPage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => createSnapshotMutation.mutate()}
+          onClick={() => createSnapshotMutation.mutate(portfolioValueIDR)}
           disabled={createSnapshotMutation.isPending}
         >
           <Camera className="mr-2 h-4 w-4" />
