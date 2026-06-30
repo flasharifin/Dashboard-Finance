@@ -19,14 +19,32 @@ export type PortfolioWithCalc = {
   platform: string;
   sector: string | null;
   note: string | null;
+  createdAt: string;
   marketPrice: number | null;
   units: number;
   totalCost: number;
   marketValue: number | null;
   unrealizedPnl: number | null;
   unrealizedPnlPct: number | null;
+  cagr: number | null;
   dailyChange: number | null;
   dailyChangePercent: number | null;
+};
+
+export type SaleTransaction = {
+  id: string;
+  stockCode: string;
+  exchange: string;
+  platform: string;
+  currency: string;
+  lotSold: number | string;
+  salePrice: number | string;
+  avgCostPrice: number | string;
+  totalProceeds: number | string;
+  totalCost: number | string;
+  realizedPnl: number | string;
+  saleDate: string;
+  note: string | null;
 };
 
 export type DividendWithCalc = {

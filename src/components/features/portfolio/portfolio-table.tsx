@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatNumber, formatPercent, cn, getUnitLabel } from "@/lib/utils";
-import { Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Pencil, Trash2, ChevronUp, ChevronDown, TrendingDown } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
 
 const EXCHANGE_BADGE: Record<string, string> = {
@@ -17,7 +17,7 @@ const EXCHANGE_BADGE: Record<string, string> = {
   CRYPTO: "bg-amber-100 text-amber-700",
 };
 
-type SortKey = "stockCode" | "lot" | "avgPrice" | "marketPrice" | "marketValue" | "unrealizedPnl" | "unrealizedPnlPct";
+type SortKey = "stockCode" | "lot" | "avgPrice" | "marketPrice" | "marketValue" | "unrealizedPnl" | "unrealizedPnlPct" | "cagr";
 type SortDir = "asc" | "desc";
 
 type Props = {
@@ -25,6 +25,7 @@ type Props = {
   isLoading: boolean;
   onEdit: (p: PortfolioWithCalc) => void;
   onDelete: (id: string) => void;
+  onSell: (p: PortfolioWithCalc) => void;
 };
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -34,7 +35,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
     : <ChevronDown className="ml-0.5 h-3.5 w-3.5 text-primary" />;
 }
 
-export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Props) {
+export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete, onSell }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("stockCode");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -89,7 +90,7 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
 
   return (
     <div className="rounded-md border overflow-x-auto">
-      <Table className="min-w-[640px]">
+      <Table className="min-w-[760px]">
         <TableHeader>
           <TableRow>
             {th("Aset", "stockCode", "left")}
@@ -99,6 +100,7 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
             {th("Nilai Pasar", "marketValue")}
             {th("P&L", "unrealizedPnl")}
             {th("%", "unrealizedPnlPct")}
+            {th("CAGR/yr", "cagr")}
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -140,8 +142,14 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete }: Prop
                 <TableCell className={cn("text-right", isProfit ? "text-emerald-600" : "text-red-600")}>
                   {p.unrealizedPnlPct !== null ? formatPercent(p.unrealizedPnlPct) : "—"}
                 </TableCell>
+                <TableCell className={cn("text-right text-sm", p.cagr != null ? (p.cagr >= 0 ? "text-emerald-600" : "text-red-600") : "text-muted-foreground")}>
+                  {p.cagr != null ? formatPercent(p.cagr) : "—"}
+                </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-amber-700" title="Jual" onClick={() => onSell(p)}>
+                      <TrendingDown className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(p)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>

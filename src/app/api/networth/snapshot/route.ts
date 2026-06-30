@@ -37,6 +37,22 @@ export async function POST(req: Request) {
   const totalLiabilities = liabilities.reduce((sum: number, l: Liability) => sum + Number(l.amount), 0);
   const netValue = totalAssets - totalLiabilities;
 
+  // Fetch benchmark prices for historical comparison
+  async function fetchBenchmarkPrice(ticker: string): Promise<number | undefined> {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!res.ok) return undefined;
+      const json = await res.json();
+      return json?.chart?.result?.[0]?.meta?.regularMarketPrice ?? undefined;
+    } catch { return undefined; }
+  }
+
+  const [ihsgResult, sp500Result] = await Promise.allSettled([
+    fetchBenchmarkPrice("%5EJKSE"),
+    fetchBenchmarkPrice("%5EGSPC"),
+  ]);
+
   const snapshot = await db.netWorthSnapshot.create({
     data: {
       userId: session.user.id,
@@ -44,6 +60,8 @@ export async function POST(req: Request) {
       totalLiabilities,
       netValue,
       portfolioValue: portfolioValueIDR > 0 ? portfolioValueIDR : undefined,
+      benchmarkIhsg: ihsgResult.status === "fulfilled" ? ihsgResult.value : undefined,
+      benchmarkSp500: sp500Result.status === "fulfilled" ? sp500Result.value : undefined,
     },
   });
 

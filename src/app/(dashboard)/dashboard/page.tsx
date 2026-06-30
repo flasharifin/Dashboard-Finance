@@ -6,6 +6,7 @@ import { useNetWorth } from "@/hooks/use-networth";
 import { useNetWorthSnapshots } from "@/hooks/use-networth";
 import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
+import { useBenchmark } from "@/hooks/use-benchmark";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,6 +55,7 @@ export default function DashboardPage() {
   const { data: rateData } = useExchangeRate();
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
+  const { data: benchmark } = useBenchmark();
   const usdToIdr = rateData?.USDIDR ?? 16000;
 
   const target = settings?.wealthTarget ?? DEFAULT_TARGET;
@@ -408,6 +410,53 @@ export default function DashboardPage() {
                 <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Net Worth" />
               </LineChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Benchmark comparison card */}
+      {benchmark && (benchmark.IHSG || benchmark.SP500) && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Benchmark Hari Ini</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Portfolio daily */}
+              <div className="rounded-md border px-4 py-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Portfolio Saya</p>
+                <p className={cn("text-2xl font-bold", totalDailyChangeIDR >= 0 ? "text-emerald-600" : "text-red-600")}>
+                  {totalDailyChangePct >= 0 ? "+" : ""}{totalDailyChangePct.toFixed(2)}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {totalDailyChangeIDR >= 0 ? "+" : ""}{formatCurrency(totalDailyChangeIDR)}
+                </p>
+              </div>
+
+              {benchmark.IHSG && (
+                <div className="rounded-md border px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">IHSG (^JKSE)</p>
+                  <p className={cn("text-2xl font-bold", benchmark.IHSG.changePercent >= 0 ? "text-emerald-600" : "text-red-600")}>
+                    {benchmark.IHSG.changePercent >= 0 ? "+" : ""}{benchmark.IHSG.changePercent.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(benchmark.IHSG.price)}
+                  </p>
+                </div>
+              )}
+
+              {benchmark.SP500 && (
+                <div className="rounded-md border px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">S&P 500 (^GSPC)</p>
+                  <p className={cn("text-2xl font-bold", benchmark.SP500.changePercent >= 0 ? "text-emerald-600" : "text-red-600")}>
+                    {benchmark.SP500.changePercent >= 0 ? "+" : ""}{benchmark.SP500.changePercent.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(benchmark.SP500.price)}
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

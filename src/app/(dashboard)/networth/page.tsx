@@ -73,7 +73,7 @@ const EXCHANGE_BADGE: Record<string, string> = {
 
 type Asset = { id: string; name: string; category: string; value: number | string; note: string | null };
 type Liability = { id: string; name: string; category: string; amount: number | string; note: string | null };
-type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string; portfolioValue: number | string | null };
+type Snapshot = { id: string; snapshotDate: string; netValue: number | string; totalAssets: number | string; totalLiabilities: number | string; portfolioValue: number | string | null; benchmarkIhsg: number | string | null; benchmarkSp500: number | string | null };
 
 // Interval snapshot otomatis: 1 = setiap bulan, 2 = setiap 2 bulan, dst
 const AUTO_SNAPSHOT_INTERVAL_MONTHS = 1;
@@ -202,12 +202,26 @@ export default function NetWorthPage() {
   }
 
   const showPortoLine = (snapshots as Snapshot[]).some((s) => s.portfolioValue != null);
+  const hasIhsg = (snapshots as Snapshot[]).some((s) => s.benchmarkIhsg != null);
+  const hasSp500 = (snapshots as Snapshot[]).some((s) => s.benchmarkSp500 != null);
+
+  // Normalize benchmarks to index 100 at first snapshot
+  const firstIhsg = (snapshots as Snapshot[]).find((s) => s.benchmarkIhsg != null)?.benchmarkIhsg;
+  const firstSp500 = (snapshots as Snapshot[]).find((s) => s.benchmarkSp500 != null)?.benchmarkSp500;
+  const firstNetWorth = snapshots.length > 0 ? Number((snapshots as Snapshot[])[0].netValue) : 1;
+
   const chartData = (snapshots as Snapshot[]).map((s) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
     "Net Worth": Number(s.netValue),
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
     ...(s.portfolioValue != null ? { Porto: Number(s.portfolioValue) } : {}),
+    ...(hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
+      ? { IHSG: (Number(s.benchmarkIhsg) / Number(firstIhsg)) * firstNetWorth }
+      : {}),
+    ...(hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
+      ? { SP500: (Number(s.benchmarkSp500) / Number(firstSp500)) * firstNetWorth }
+      : {}),
   }));
 
   return (
@@ -293,6 +307,8 @@ export default function NetWorthPage() {
                   <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   {showPortoLine && <Line dataKey="Porto" stroke="#8b5cf6" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
+                  {hasIhsg && <Line dataKey="IHSG" stroke="#f59e0b" strokeWidth={1.5} dot={false} strokeDasharray="6 2" />}
+                  {hasSp500 && <Line dataKey="SP500" stroke="#06b6d4" strokeWidth={1.5} dot={false} strokeDasharray="6 2" />}
                 </LineChart>
               </ResponsiveContainer>
             )}

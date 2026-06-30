@@ -27,6 +27,7 @@ model User {
   liabilities       Liability[]
   netWorthSnapshots NetWorthSnapshot[]
   userSetting       UserSetting?
+  saleTransactions  SaleTransaction[]
 }
 
 model Account {
@@ -192,12 +193,37 @@ model NetWorthSnapshot {
   totalLiabilities Decimal  @db.Decimal(15, 2)
   netValue         Decimal  @db.Decimal(15, 2)
   portfolioValue   Decimal? @db.Decimal(15, 2)
+  benchmarkIhsg    Decimal? @db.Decimal(15, 2)
+  benchmarkSp500   Decimal? @db.Decimal(15, 2)
   snapshotDate     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([snapshotDate])
+}
+
+model SaleTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  stockCode     String
+  exchange      String
+  platform      String   @default("")
+  currency      String   @default("IDR")
+  lotSold       Decimal  @db.Decimal(15, 8)
+  salePrice     Decimal  @db.Decimal(15, 8)
+  avgCostPrice  Decimal  @db.Decimal(15, 8)
+  totalProceeds Decimal  @db.Decimal(15, 2)
+  totalCost     Decimal  @db.Decimal(15, 2)
+  realizedPnl   Decimal  @db.Decimal(15, 2)
+  saleDate      DateTime @default(now())
+  note          String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([saleDate])
 }
 
 model UserSetting {

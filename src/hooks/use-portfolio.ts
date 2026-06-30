@@ -13,6 +13,7 @@ type RawPortfolio = {
   platform: string;
   sector: string | null;
   note: string | null;
+  createdAt: string;
 };
 
 async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
@@ -43,6 +44,19 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
     const unrealizedPnlPct =
       unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
 
+    // CAGR: annualized return based on createdAt holding period
+    let cagr: number | null = null;
+    if (marketValue !== null && totalCost > 0 && p.createdAt) {
+      const holdingDays = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (holdingDays >= 1) {
+        const holdingYears = holdingDays / 365;
+        const simpleReturn = (marketValue - totalCost) / totalCost;
+        if (simpleReturn > -1) {
+          cagr = (Math.pow(1 + simpleReturn, 1 / holdingYears) - 1) * 100;
+        }
+      }
+    }
+
     // Daily change: price change per unit × units (native currency)
     const dailyChange = marketData?.change != null ? marketData.change * units : null;
     const dailyChangePercent = marketData?.changePercent ?? null;
@@ -57,12 +71,14 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
       platform: p.platform ?? "",
       sector: p.sector,
       note: p.note,
+      createdAt: p.createdAt,
       units,
       totalCost,
       marketPrice,
       marketValue,
       unrealizedPnl,
       unrealizedPnlPct,
+      cagr,
       dailyChange,
       dailyChangePercent,
     };
