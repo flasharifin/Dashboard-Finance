@@ -30,6 +30,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  const { purchaseDate, ...rest } = parsed.data;
+  const parsedPurchaseDate = purchaseDate ? new Date(purchaseDate) : undefined;
   const portfolio = await db.portfolio.upsert({
     where: {
       userId_stockCode_platform: {
@@ -39,14 +41,16 @@ export async function POST(req: Request) {
       },
     },
     update: {
-      lot: parsed.data.lot,
-      avgPrice: parsed.data.avgPrice,
-      sector: parsed.data.sector,
-      note: parsed.data.note,
+      lot: rest.lot,
+      avgPrice: rest.avgPrice,
+      sector: rest.sector,
+      note: rest.note,
+      ...(parsedPurchaseDate !== undefined ? { purchaseDate: parsedPurchaseDate } : {}),
     },
     create: {
       userId: session.user.id,
-      ...parsed.data,
+      ...rest,
+      ...(parsedPurchaseDate !== undefined ? { purchaseDate: parsedPurchaseDate } : {}),
     },
   });
 

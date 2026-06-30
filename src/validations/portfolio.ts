@@ -13,6 +13,7 @@ export const portfolioSchema = z.object({
   platform: z.string().default(""),
   sector: z.string().optional(),
   note: z.string().optional(),
+  purchaseDate: z.string().optional().nullable(),
 });
 
 export const dcaSimulationSchema = z.object({

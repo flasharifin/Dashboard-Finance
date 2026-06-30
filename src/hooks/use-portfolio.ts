@@ -14,6 +14,7 @@ type RawPortfolio = {
   sector: string | null;
   note: string | null;
   createdAt: string;
+  purchaseDate: string | null;
 };
 
 async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
@@ -44,10 +45,11 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
     const unrealizedPnlPct =
       unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
 
-    // CAGR: annualized return based on createdAt holding period
+    // CAGR: annualized return based on actual purchase date (or createdAt as fallback)
     let cagr: number | null = null;
-    if (marketValue !== null && totalCost > 0 && p.createdAt) {
-      const holdingDays = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const startDate = p.purchaseDate ?? p.createdAt;
+    if (marketValue !== null && totalCost > 0 && startDate) {
+      const holdingDays = (Date.now() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
       if (holdingDays >= 1) {
         const holdingYears = holdingDays / 365;
         const simpleReturn = (marketValue - totalCost) / totalCost;
@@ -72,6 +74,7 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
       sector: p.sector,
       note: p.note,
       createdAt: p.createdAt,
+      purchaseDate: p.purchaseDate ?? null,
       units,
       totalCost,
       marketPrice,

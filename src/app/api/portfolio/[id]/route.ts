@@ -23,9 +23,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  const { purchaseDate, ...rest } = parsed.data;
   const updated = await db.portfolio.update({
     where: { id },
-    data: parsed.data,
+    data: {
+      ...rest,
+      purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+    },
   });
 
   return NextResponse.json({ data: updated });

@@ -20,6 +20,7 @@ export type PortfolioWithCalc = {
   sector: string | null;
   note: string | null;
   createdAt: string;
+  purchaseDate: string | null;
   marketPrice: number | null;
   units: number;
   totalCost: number;
