@@ -1,0 +1,46 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import type { Asset, Liability } from "@prisma/client";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const snapshots = await db.netWorthSnapshot.findMany({
+    where: { userId: session.user.id },
+    orderBy: { snapshotDate: "asc" },
+    take: 24,
+  });
+
+  return NextResponse.json({ data: snapshots });
+}
+
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const [assets, liabilities] = await Promise.all([
+    db.asset.findMany({ where: { userId: session.user.id } }),
+    db.liability.findMany({ where: { userId: session.user.id } }),
+  ]);
+
+  const totalAssets = assets.reduce((sum: number, a: Asset) => sum + Number(a.value), 0);
+  const totalLiabilities = liabilities.reduce((sum: number, l: Liability) => sum + Number(l.amount), 0);
+  const netValue = totalAssets - totalLiabilities;
+
+  const snapshot = await db.netWorthSnapshot.create({
+    data: {
+      userId: session.user.id,
+      totalAssets,
+      totalLiabilities,
+      netValue,
+    },
+  });
+
+  return NextResponse.json({ data: snapshot }, { status: 201 });
+}
