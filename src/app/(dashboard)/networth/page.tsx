@@ -86,16 +86,17 @@ export default function NetWorthPage() {
   const [assetCategory, setAssetCategory] = useState("");
   const [liabilityCategory, setLiabilityCategory] = useState("");
 
-  // Nilai portfolio dalam IDR — hanya untuk info di tab Aset, tidak masuk ke summary cards
+  // Nilai portfolio dalam IDR (market price jika ada, fallback ke modal)
   const portfolioValueIDR = portfolios.reduce((sum: number, p: PortfolioWithCalc) => {
     const val = p.marketValue ?? p.totalCost;
     return sum + (p.currency === "IDR" ? val : val * usdToIdr);
   }, 0);
 
-  // Summary cards hanya dari aset yang diinput manual
+  // Total Aset = porto investasi + aset manual yang diinput
   const manualAssetsTotal = networth?.totalAssets ?? 0;
+  const totalAssetsAll = portfolioValueIDR + manualAssetsTotal;
   const totalLiabilities = networth?.totalLiabilities ?? 0;
-  const netValue = networth?.netValue ?? 0;
+  const netValue = totalAssetsAll - totalLiabilities;
   const isPositive = netValue >= 0;
 
   async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
@@ -154,18 +155,18 @@ export default function NetWorthPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {isLoading ? (
+        {isLoading || portfolioLoading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28" />)
         ) : (
           <>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Aset Manual</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Aset</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(manualAssetsTotal)}</p>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalAssetsAll)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Kas, properti, reksa dana, dll.
+                  Porto: {formatCurrency(portfolioValueIDR)} + Manual: {formatCurrency(manualAssetsTotal)}
                 </p>
               </CardContent>
             </Card>
