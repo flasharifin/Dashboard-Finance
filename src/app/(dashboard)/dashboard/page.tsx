@@ -147,13 +147,27 @@ export default function DashboardPage() {
   const targetRemaining = Math.max(target - combinedNetWorth, 0);
 
   // Portfolio performance chart from snapshots
-  const portoChartData = snapshots
-    .filter((s) => s.portfolioValue != null)
-    .map((s) => ({
-      date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
-      Porto: Number(s.portfolioValue),
-      "Net Worth": Number(s.netValue),
-    }));
+  const portoSnapshots = snapshots.filter((s) => s.portfolioValue != null);
+  const portoChartData = portoSnapshots.map((s) => ({
+    date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
+    Porto: Number(s.portfolioValue),
+    "Net Worth": Number(s.netValue),
+  }));
+  const portoTableData = [...portoSnapshots].reverse().map((s, i, arr) => {
+    const prev = arr[i + 1] ?? null;
+    const porto = Number(s.portfolioValue);
+    const nw = Number(s.netValue);
+    const prevPorto = prev ? Number(prev.portfolioValue) : null;
+    const prevNw = prev ? Number(prev.netValue) : null;
+    return {
+      date: s.snapshotDate,
+      porto, nw,
+      dPorto: prevPorto != null ? porto - prevPorto : null,
+      dPortoPct: prevPorto != null && prevPorto !== 0 ? ((porto - prevPorto) / Math.abs(prevPorto)) * 100 : null,
+      dNw: prevNw != null ? nw - prevNw : null,
+      dNwPct: prevNw != null && prevNw !== 0 ? ((nw - prevNw) / Math.abs(prevNw)) * 100 : null,
+    };
+  });
 
   const isLoading = networthLoading || portfolioLoading;
 
@@ -393,6 +407,57 @@ export default function DashboardPage() {
                 <Line dataKey="Net Worth" stroke="#3b82f6" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Net Worth" />
               </LineChart>
             </ResponsiveContainer>
+
+            {/* Delta table */}
+            <div className="mt-4 rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted border-b text-xs text-muted-foreground">
+                    <th className="text-left px-3 py-2 font-medium">Tanggal</th>
+                    <th className="text-right px-3 py-2 font-medium hidden sm:table-cell">Porto</th>
+                    <th className="text-right px-3 py-2 font-medium">Δ Porto</th>
+                    <th className="text-right px-3 py-2 font-medium hidden sm:table-cell">Net Worth</th>
+                    <th className="text-right px-3 py-2 font-medium">Δ NW</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {portoTableData.map((row, i) => {
+                    const DeltaCell = ({ d, pct }: { d: number | null; pct: number | null }) => {
+                      if (d == null) return <span className="text-muted-foreground">—</span>;
+                      const up = d > 0;
+                      const zero = d === 0;
+                      const cls = zero ? "text-muted-foreground" : up ? "text-emerald-600" : "text-red-600";
+                      const Icon = zero ? Minus : up ? ArrowUp : ArrowDown;
+                      return (
+                        <span className={cn("inline-flex items-center gap-0.5 font-medium", cls)}>
+                          <Icon className="h-3 w-3" />
+                          {pct != null ? `${Math.abs(pct).toFixed(1)}%` : formatCurrency(Math.abs(d))}
+                        </span>
+                      );
+                    };
+                    return (
+                      <tr key={i} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-3 py-2 text-foreground font-medium whitespace-nowrap">
+                          {format(new Date(row.date), "dd MMM yy", { locale: idLocale })}
+                        </td>
+                        <td className="px-3 py-2 text-right text-foreground hidden sm:table-cell">
+                          {formatCurrency(row.porto)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <DeltaCell d={row.dPorto} pct={row.dPortoPct} />
+                        </td>
+                        <td className="px-3 py-2 text-right text-foreground hidden sm:table-cell">
+                          {formatCurrency(row.nw)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <DeltaCell d={row.dNw} pct={row.dNwPct} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
