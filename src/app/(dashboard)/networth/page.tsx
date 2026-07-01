@@ -46,6 +46,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -310,6 +311,14 @@ export default function NetWorthPage() {
                     formatter={(value) => formatCurrency(Number(value))}
                     labelStyle={{ fontWeight: 600 }}
                   />
+                  <Legend
+                    wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                    formatter={(value) =>
+                      value === "Net Worth" ? "Net Worth"
+                      : value === "Porto" ? "Portofolio"
+                      : value
+                    }
+                  />
                   <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                   <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
@@ -338,7 +347,7 @@ export default function NetWorthPage() {
                       const nw = Number(s.netValue);
                       return (
                         <tr key={s.id} className="hover:bg-muted/40 transition-colors">
-                          <td className="px-3 py-2.5 text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-black font-semibold whitespace-nowrap">
                             {format(new Date(s.snapshotDate), "dd MMM yyyy", { locale: idLocale })}
                             <span className="block text-xs text-slate-500 dark:text-slate-400">
                               {format(new Date(s.snapshotDate), "HH:mm")}
@@ -350,7 +359,7 @@ export default function NetWorthPage() {
                           <td className="px-3 py-2.5 text-right text-red-600 dark:text-red-400 hidden sm:table-cell">
                             {formatCurrency(Number(s.totalLiabilities))}
                           </td>
-                          <td className={cn("px-3 py-2.5 text-right font-bold", nw >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
+                          <td className="px-3 py-2.5 text-right font-bold text-black">
                             {formatCurrency(nw)}
                           </td>
                           <td className="px-2 py-2.5">
