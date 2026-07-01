@@ -24,14 +24,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, calcAvgPrice, getUnitLabel, calcUnits, cn } from "@/lib/utils";
+import { EXCHANGE_BADGE } from "@/lib/constants";
 import { Calculator, Plus, Trash2, ToggleLeft, ToggleRight, Pencil, BookOpen, ListChecks, History } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
-
-const EXCHANGE_BADGE: Record<string, string> = {
-  IDX: "bg-blue-100 text-blue-700",
-  US: "bg-violet-100 text-violet-700",
-  CRYPTO: "bg-amber-100 text-amber-700",
-};
 
 const FREQ_LABEL: Record<string, string> = {
   weekly: "Mingguan",
@@ -93,12 +88,16 @@ export default function DcaPage() {
 
   const simResult =
     selected && newLot && newPrice
-      ? {
-          newAvgPrice: calcAvgPrice(selected.lot, selected.avgPrice, Number(newLot), Number(newPrice)),
-          totalQty: selected.lot + Number(newLot),
-          additionalCost: Number(newLot) * Number(newPrice),
-          totalCost: selected.totalCost + Number(newLot) * Number(newPrice),
-        }
+      ? (() => {
+          const addUnits = calcUnits(Number(newLot), selected.exchange);
+          const additionalCost = addUnits * Number(newPrice);
+          return {
+            newAvgPrice: calcAvgPrice(selected.lot, selected.avgPrice, Number(newLot), Number(newPrice)),
+            totalQty: selected.lot + Number(newLot),
+            additionalCost,
+            totalCost: selected.totalCost + additionalCost,
+          };
+        })()
       : null;
 
   // Rekomendasi lot berdasarkan budget

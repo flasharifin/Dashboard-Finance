@@ -2,8 +2,7 @@
 
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { useDividends } from "@/hooks/use-dividends";
-import { useNetWorth } from "@/hooks/use-networth";
-import { useNetWorthSnapshots } from "@/hooks/use-networth";
+import { useNetWorth, useNetWorthSnapshots } from "@/hooks/use-networth";
 import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import { useBenchmark } from "@/hooks/use-benchmark";
@@ -16,6 +15,7 @@ import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import { TrendingUp, Banknote, Wallet, TrendingDown, Target, Pencil, Check, X, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { EXCHANGE_BADGE, PIE_COLORS } from "@/lib/constants";
 import type { PortfolioWithCalc } from "@/types";
 import {
   PieChart,
@@ -33,17 +33,6 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
-const EXCHANGE_BADGE: Record<string, string> = {
-  IDX: "bg-blue-100 text-blue-700",
-  US: "bg-violet-100 text-violet-700",
-  CRYPTO: "bg-amber-100 text-amber-700",
-};
-
-const PIE_COLORS: Record<string, string> = {
-  IDX: "#3b82f6",
-  US: "#8b5cf6",
-  CRYPTO: "#f59e0b",
-};
 
 const DEFAULT_TARGET = 100_000_000;
 
@@ -129,15 +118,9 @@ export default function DashboardPage() {
     : [];
 
   const totalDailyChangeIDR = dailyRows.reduce((s, r) => s + r.dailyChangeIDR, 0);
-  const totalPortfolioValueIDR = portfolios
-    ? portfolios.reduce((s: number, p: PortfolioWithCalc) => {
-        const val = p.marketValue ?? p.totalCost;
-        return s + (p.currency === "IDR" ? val : val * usdToIdr);
-      }, 0)
-    : 0;
   const totalDailyChangePct =
-    totalPortfolioValueIDR > 0
-      ? (totalDailyChangeIDR / (totalPortfolioValueIDR - totalDailyChangeIDR)) * 100
+    portfolioValueIDR > 0
+      ? (totalDailyChangeIDR / (portfolioValueIDR - totalDailyChangeIDR)) * 100
       : 0;
 
   // ── Net Worth calculations ──────────────────────────────────────

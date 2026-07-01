@@ -8,14 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatNumber, formatPercent, cn, getUnitLabel } from "@/lib/utils";
+import { EXCHANGE_BADGE } from "@/lib/constants";
 import { Pencil, Trash2, ChevronUp, ChevronDown, TrendingDown } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
-
-const EXCHANGE_BADGE: Record<string, string> = {
-  IDX: "bg-blue-100 text-blue-700",
-  US: "bg-violet-100 text-violet-700",
-  CRYPTO: "bg-amber-100 text-amber-700",
-};
 
 type SortKey = "stockCode" | "lot" | "avgPrice" | "marketPrice" | "marketValue" | "unrealizedPnl" | "unrealizedPnlPct" | "cagr";
 type SortDir = "asc" | "desc";
@@ -106,7 +101,7 @@ export function PortfolioTable({ portfolios, isLoading, onEdit, onDelete, onSell
         </TableHeader>
         <TableBody>
           {sorted.map((p) => {
-            const isProfit = (p.unrealizedPnl ?? 0) >= 0;
+            const isProfit = p.unrealizedPnl !== null && p.unrealizedPnl >= 0;
             const unitLabel = getUnitLabel(p.exchange);
             const fmtUnits = (n: number) =>
               new Intl.NumberFormat("id-ID", { maximumFractionDigits: 8 }).format(n);

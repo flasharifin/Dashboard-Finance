@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 import type { PortfolioWithCalc, Exchange, Currency } from "@/types";
 import { calcUnits } from "@/lib/utils";
 
@@ -23,7 +24,6 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
 
   if (portfolios.length === 0) return [];
 
-  // Build assets param: BBCA:IDX,AAPL:US,BTC:CRYPTO
   const assetsParam = portfolios
     .map((p) => `${p.stockCode}:${p.exchange}`)
     .join(",");
@@ -45,12 +45,11 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
     const unrealizedPnlPct =
       unrealizedPnl !== null && totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : null;
 
-    // CAGR: annualized return based on actual purchase date (or createdAt as fallback)
     let cagr: number | null = null;
     const startDate = p.purchaseDate ?? p.createdAt;
     if (marketValue !== null && totalCost > 0 && startDate) {
       const holdingDays = (Date.now() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
-      if (holdingDays >= 1) {
+      if (holdingDays >= 30) {
         const holdingYears = holdingDays / 365;
         const simpleReturn = (marketValue - totalCost) / totalCost;
         if (simpleReturn > -1) {
@@ -59,7 +58,6 @@ async function fetchPortfolios(): Promise<PortfolioWithCalc[]> {
       }
     }
 
-    // Daily change: price change per unit × units (native currency)
     const dailyChange = marketData?.change != null ? marketData.change * units : null;
     const dailyChangePercent = marketData?.changePercent ?? null;
 
@@ -92,15 +90,9 @@ export function usePortfolio() {
   return useQuery({
     queryKey: ["portfolio"],
     queryFn: fetchPortfolios,
+    staleTime: 10 * 60 * 1000,
     refetchInterval: 15 * 60 * 1000,
   });
-}
-
-async function apiFetch(url: string, options: RequestInit) {
-  const res = await fetch(url, options);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Terjadi kesalahan");
-  return json;
 }
 
 export function useAddPortfolio() {
@@ -141,10 +133,11 @@ export function useDeletePortfolio() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/portfolio/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      apiFetch(`/api/portfolio/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["portfolio"] });
       toast.success("Posisi berhasil dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

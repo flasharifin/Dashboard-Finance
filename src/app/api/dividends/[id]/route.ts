@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   const existing = await db.dividend.findFirst({
     where: { id, userId: session.user.id },
-    include: { portfolio: { select: { lot: true } } },
+    include: { portfolio: { select: { lot: true, exchange: true } } },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -49,7 +49,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const receivedAmount = calcReceivedAmount(
     Number(existing.portfolio.lot),
     parsed.data.dps,
-    parsed.data.taxPct
+    parsed.data.taxPct,
+    existing.portfolio.exchange
   );
 
   const updated = await db.dividend.update({

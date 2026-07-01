@@ -41,7 +41,8 @@ export async function POST(req: Request) {
   const receivedAmount = calcReceivedAmount(
     Number(portfolio.lot),
     parsed.data.dps,
-    parsed.data.taxPct
+    parsed.data.taxPct,
+    portfolio.exchange
   );
 
   const dividend = await db.dividend.create({

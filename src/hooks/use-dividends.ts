@@ -1,17 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-async function apiFetch(url: string, options: RequestInit) {
-  const res = await fetch(url, options);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Terjadi kesalahan");
-  return json;
-}
+import { apiFetch } from "@/lib/api-client";
 
 export function useDividends() {
   return useQuery({
     queryKey: ["dividends"],
     queryFn: () => fetch("/api/dividends").then((r) => r.json()).then((r) => r.data ?? []),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -53,10 +48,11 @@ export function useDeleteDividend() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/dividends/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      apiFetch(`/api/dividends/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dividends"] });
       toast.success("Dividen berhasil dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

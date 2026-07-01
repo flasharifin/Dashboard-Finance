@@ -6,14 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, cn } from "@/lib/utils";
+import { EXCHANGE_BADGE } from "@/lib/constants";
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type { PortfolioWithCalc } from "@/types";
-
-const EXCHANGE_BADGE: Record<string, string> = {
-  IDX: "bg-blue-100 text-blue-700",
-  US: "bg-violet-100 text-violet-700",
-  CRYPTO: "bg-amber-100 text-amber-700",
-};
 
 export default function DailyLogPage() {
   const { data: portfolios, isLoading } = usePortfolio();

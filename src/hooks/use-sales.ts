@@ -1,17 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
-async function apiFetch(url: string, options: RequestInit) {
-  const res = await fetch(url, options);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "Terjadi kesalahan");
-  return json;
-}
+import { apiFetch } from "@/lib/api-client";
 
 export function useSaleTransactions() {
   return useQuery({
     queryKey: ["sales"],
     queryFn: () => fetch("/api/portfolio/sales").then((r) => r.json()).then((r) => r.data ?? []),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -37,10 +32,11 @@ export function useDeleteSale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/portfolio/sales/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      apiFetch(`/api/portfolio/sales/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Histori jual dihapus");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

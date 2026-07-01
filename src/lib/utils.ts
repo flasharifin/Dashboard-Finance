@@ -62,8 +62,8 @@ export function calcNetDps(dps: number, taxPct: number): number {
   return dps * (1 - taxPct / 100);
 }
 
-export function calcReceivedAmount(lot: number, dps: number, taxPct: number): number {
-  return lot * 100 * calcNetDps(dps, taxPct);
+export function calcReceivedAmount(lot: number, dps: number, taxPct: number, exchange = "IDX"): number {
+  return calcUnits(lot, exchange) * calcNetDps(dps, taxPct);
 }
 
 /** Hitung units berdasarkan exchange (IDX: lot×100, US/CRYPTO: lot×1) */

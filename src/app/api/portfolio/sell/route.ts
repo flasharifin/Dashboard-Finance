@@ -59,14 +59,10 @@ export async function POST(req: Request) {
     });
 
     const remainingLot = currentLot - lotSold;
-    if (remainingLot < 0.000001) {
-      await tx.portfolio.delete({ where: { id: portfolioId } });
-    } else {
-      await tx.portfolio.update({
-        where: { id: portfolioId },
-        data: { lot: remainingLot },
-      });
-    }
+    await tx.portfolio.update({
+      where: { id: portfolioId },
+      data: { lot: remainingLot < 0.000001 ? 0 : remainingLot },
+    });
 
     return [sale];
   });

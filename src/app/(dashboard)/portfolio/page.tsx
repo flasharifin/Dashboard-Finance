@@ -7,7 +7,7 @@ import {
   useUpdatePortfolio,
   useDeletePortfolio,
 } from "@/hooks/use-portfolio";
-import { useSaleTransactions, useSellPortfolio } from "@/hooks/use-sales";
+import { useSaleTransactions, useSellPortfolio, useDeleteSale } from "@/hooks/use-sales";
 import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import { PortfolioSummaryCards } from "@/components/features/portfolio/summary-cards";
 import { PortfolioTable } from "@/components/features/portfolio/portfolio-table";
@@ -33,25 +33,20 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Plus, Download, TrendingDown, TrendingUp, LayoutList, History,
+  Plus, Download, TrendingDown, TrendingUp, LayoutList, History, Trash2, ArrowUpDown,
 } from "lucide-react";
 import type { PortfolioWithCalc, Exchange, Currency, SaleTransaction } from "@/types";
 import {
   calcAvgPrice, calcUnits, formatCurrency, formatPercent,
   getUnitLabel, exportToCSV, cn,
 } from "@/lib/utils";
+import { EXCHANGE_BADGE } from "@/lib/constants";
 
 const EXCHANGE_OPTIONS: { value: Exchange; label: string; currency: Currency; hint: string }[] = [
   { value: "IDX",    label: "IDX (Bursa Indonesia)",  currency: "IDR", hint: "Contoh: BBCA, TLKM, GOTO" },
   { value: "US",     label: "US Stock (NYSE/NASDAQ)", currency: "USD", hint: "Contoh: AAPL, GOOGL, TSLA" },
   { value: "CRYPTO", label: "Crypto",                 currency: "USD", hint: "Contoh: BTC, ETH, SOL" },
 ];
-
-const EXCHANGE_BADGE: Record<string, string> = {
-  IDX:    "bg-blue-100 text-blue-700",
-  US:     "bg-violet-100 text-violet-700",
-  CRYPTO: "bg-amber-100 text-amber-700",
-};
 
 type ActiveTab = "active" | "history";
 
@@ -65,6 +60,7 @@ export default function PortfolioPage() {
   const updateMutation = useUpdatePortfolio();
   const deleteMutation = useDeletePortfolio();
   const sellMutation   = useSellPortfolio();
+  const deleteSaleMutation = useDeleteSale();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("active");
 
@@ -83,6 +79,12 @@ export default function PortfolioPage() {
   const [sellLot, setSellLot]               = useState("");
   const [sellPrice, setSellPrice]           = useState("");
   const [sellError, setSellError]           = useState("");
+
+  // Histori jual filter/sort
+  const [saleSearch, setSaleSearch]             = useState("");
+  const [saleExFilter, setSaleExFilter]         = useState("ALL");
+  const [salePnlFilter, setSalePnlFilter]       = useState("ALL");
+  const [saleSortBy, setSaleSortBy]             = useState("date_desc");
 
   const selectedExchangeOpt = EXCHANGE_OPTIONS.find((e) => e.value === exchange)!;
   const unitLabel = getUnitLabel(exchange);
@@ -189,6 +191,26 @@ export default function PortfolioPage() {
     const pnlPct   = cost > 0 ? (pnl / cost) * 100 : 0;
     return { proceeds, cost, pnl, pnlPct };
   })();
+
+  async function handleDeleteSale(id: string) {
+    if (confirm("Hapus histori jual ini?")) await deleteSaleMutation.mutateAsync(id);
+  }
+
+  const filteredSales = (sales as SaleTransaction[])
+    .filter((t) => {
+      if (saleSearch && !t.stockCode.toLowerCase().includes(saleSearch.toLowerCase())) return false;
+      if (saleExFilter !== "ALL" && t.exchange !== saleExFilter) return false;
+      if (salePnlFilter === "profit" && Number(t.realizedPnl) < 0) return false;
+      if (salePnlFilter === "loss" && Number(t.realizedPnl) >= 0) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (saleSortBy === "date_desc") return new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime();
+      if (saleSortBy === "date_asc") return new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime();
+      if (saleSortBy === "pnl_desc") return Number(b.realizedPnl) - Number(a.realizedPnl);
+      if (saleSortBy === "pnl_asc") return Number(a.realizedPnl) - Number(b.realizedPnl);
+      return 0;
+    });
 
   const totalRealizedPnlIDR = (sales as SaleTransaction[]).reduce((s, t) => {
     const pnl = Number(t.realizedPnl);
@@ -332,6 +354,7 @@ export default function PortfolioPage() {
       {/* ── Histori Jual ──────────────────────────────────────────── */}
       {activeTab === "history" && (
         <div className="space-y-4">
+          {/* Summary cards */}
           {sales.length > 0 && (
             <div className="grid gap-4 sm:grid-cols-3">
               <Card>
@@ -371,8 +394,64 @@ export default function PortfolioPage() {
             </div>
           )}
 
+          {/* Filter & sort bar */}
+          {sales.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                placeholder="Cari kode aset..."
+                value={saleSearch}
+                onChange={(e) => setSaleSearch(e.target.value)}
+                className="h-8 w-40 text-sm"
+              />
+              <Select value={saleExFilter} onValueChange={(v) => setSaleExFilter(v ?? "ALL")}>
+                <SelectTrigger className="h-8 w-28 text-sm">
+                  <span>{saleExFilter === "ALL" ? "Semua Pasar" : saleExFilter}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Pasar</SelectItem>
+                  <SelectItem value="IDX">IDX</SelectItem>
+                  <SelectItem value="US">US</SelectItem>
+                  <SelectItem value="CRYPTO">Crypto</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={salePnlFilter} onValueChange={(v) => setSalePnlFilter(v ?? "ALL")}>
+                <SelectTrigger className="h-8 w-28 text-sm">
+                  <span>
+                    {salePnlFilter === "ALL" ? "Semua P&L" : salePnlFilter === "profit" ? "Untung" : "Rugi"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua P&L</SelectItem>
+                  <SelectItem value="profit">Untung</SelectItem>
+                  <SelectItem value="loss">Rugi</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={saleSortBy} onValueChange={(v) => setSaleSortBy(v ?? "date_desc")}>
+                <SelectTrigger className="h-8 w-36 text-sm">
+                  <ArrowUpDown className="mr-1.5 h-3 w-3" />
+                  <span>
+                    {saleSortBy === "date_desc" ? "Terbaru" :
+                     saleSortBy === "date_asc"  ? "Terlama" :
+                     saleSortBy === "pnl_desc"  ? "P&L Terbesar" : "P&L Terkecil"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date_desc">Terbaru</SelectItem>
+                  <SelectItem value="date_asc">Terlama</SelectItem>
+                  <SelectItem value="pnl_desc">P&L Terbesar</SelectItem>
+                  <SelectItem value="pnl_asc">P&L Terkecil</SelectItem>
+                </SelectContent>
+              </Select>
+              {filteredSales.length !== sales.length && (
+                <span className="text-xs text-muted-foreground">
+                  {filteredSales.length} dari {sales.length} transaksi
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="rounded-md border overflow-x-auto">
-            <Table className="min-w-[640px]">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Aset</TableHead>
@@ -382,12 +461,13 @@ export default function PortfolioPage() {
                   <TableHead className="text-right">Proceeds</TableHead>
                   <TableHead className="text-right">Realized P&L</TableHead>
                   <TableHead>Tanggal</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sales.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-16 text-center">
+                    <TableCell colSpan={8} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <History className="h-8 w-8 opacity-30" />
                         <p className="font-medium">Belum ada histori jual</p>
@@ -399,8 +479,14 @@ export default function PortfolioPage() {
                       </div>
                     </TableCell>
                   </TableRow>
+                ) : filteredSales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                      Tidak ada transaksi yang sesuai filter.
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  (sales as SaleTransaction[]).map((t) => {
+                  filteredSales.map((t) => {
                     const pnl      = Number(t.realizedPnl);
                     const proceeds = Number(t.totalProceeds);
                     const cost     = Number(t.totalCost);
@@ -437,6 +523,16 @@ export default function PortfolioPage() {
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(t.saleDate).toLocaleDateString("id-ID")}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteSale(t.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
