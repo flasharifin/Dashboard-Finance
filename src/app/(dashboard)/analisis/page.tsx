@@ -611,32 +611,41 @@ function StressTestTab({
       </Card>
 
       {/* Impact summary */}
-      <Card className={cn("border-2", totalDelta < 0 ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50")}>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-            <div className="flex-1">
-              <p className="text-xs font-medium text-foreground/70">Nilai Portfolio Saat Ini</p>
-              <p className="text-xl font-bold mt-0.5">{formatCurrency(totalBefore)}</p>
-            </div>
-            <div className="text-foreground/40 hidden sm:block text-xl">→</div>
-            <div className="flex-1">
-              <p className="text-xs font-medium text-foreground/70">Nilai Setelah Skenario</p>
-              <p className={cn("text-xl font-bold mt-0.5", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
-                {formatCurrency(totalAfter)}
-              </p>
-            </div>
-            <div className="border-t sm:border-t-0 sm:border-l pt-3 sm:pt-0 sm:pl-6">
-              <p className="text-xs font-medium text-foreground/70">Estimasi Dampak</p>
-              <p className={cn("text-2xl font-bold mt-0.5", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
-                {totalDelta >= 0 ? "+" : ""}{formatCurrency(totalDelta)}
-              </p>
-              <p className={cn("text-sm font-medium", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
-                {totalDeltaPct >= 0 ? "+" : ""}{totalDeltaPct.toFixed(1)}% dari total
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {(() => {
+        const isLoss = totalDelta < 0;
+        const labelCls  = isLoss ? "text-red-600"  : "text-emerald-600";
+        const valueCls  = isLoss ? "text-red-800"  : "text-emerald-800";
+        const arrowCls  = isLoss ? "text-red-300"  : "text-emerald-300";
+        const dividerCls = isLoss ? "border-red-200" : "border-emerald-200";
+        return (
+          <Card className={cn("border-2", isLoss ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50")}>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+                <div className="flex-1">
+                  <p className={cn("text-xs font-semibold uppercase tracking-wide", labelCls)}>Nilai Portfolio Saat Ini</p>
+                  <p className={cn("text-xl font-bold mt-0.5", valueCls)}>{formatCurrency(totalBefore)}</p>
+                </div>
+                <div className={cn("hidden sm:block text-2xl font-light", arrowCls)}>→</div>
+                <div className="flex-1">
+                  <p className={cn("text-xs font-semibold uppercase tracking-wide", labelCls)}>Nilai Setelah Skenario</p>
+                  <p className={cn("text-xl font-bold mt-0.5", valueCls)}>
+                    {formatCurrency(totalAfter)}
+                  </p>
+                </div>
+                <div className={cn("border-t sm:border-t-0 sm:border-l pt-3 sm:pt-0 sm:pl-6", dividerCls)}>
+                  <p className={cn("text-xs font-semibold uppercase tracking-wide", labelCls)}>Estimasi Dampak</p>
+                  <p className={cn("text-2xl font-bold mt-0.5", valueCls)}>
+                    {totalDelta >= 0 ? "+" : ""}{formatCurrency(totalDelta)}
+                  </p>
+                  <p className={cn("text-sm font-semibold", valueCls)}>
+                    {totalDeltaPct >= 0 ? "+" : ""}{totalDeltaPct.toFixed(1)}% dari total
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Per-asset table */}
       <Card>
