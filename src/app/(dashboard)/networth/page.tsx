@@ -34,9 +34,10 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Trash2, Plus, Camera, TrendingUp, Pencil, Wallet, CreditCard } from "lucide-react";
+import { Trash2, Plus, Camera, TrendingUp, Pencil, Wallet, CreditCard, Target } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { PortfolioWithCalc } from "@/types";
+import { GoalTab } from "@/components/features/networth/goal-tab";
 import {
   LineChart,
   Line,
@@ -93,7 +94,7 @@ export default function NetWorthPage() {
   const updateLiabilityMutation = useUpdateLiability();
   const deleteLiabilityMutation = useDeleteLiability();
 
-  const [activeTab, setActiveTab] = useState<"assets" | "liabilities">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "liabilities" | "goal">("assets");
 
   // Add dialogs
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -363,6 +364,12 @@ export default function NetWorthPage() {
               count: (networth?.liabilities ?? []).length,
               icon: <CreditCard className="h-4 w-4" />,
             },
+            {
+              id: "goal" as const,
+              label: "Goal",
+              count: null,
+              icon: <Target className="h-4 w-4" />,
+            },
           ]).map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -376,12 +383,14 @@ export default function NetWorthPage() {
               >
                 {tab.icon}
                 {tab.label}
-                <span className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
-                  active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                )}>
-                  {tab.count}
-                </span>
+                {tab.count != null && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
+                    active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  )}>
+                    {tab.count}
+                  </span>
+                )}
                 {active && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />
                 )}
@@ -499,6 +508,9 @@ export default function NetWorthPage() {
             <p className="py-8 text-center text-muted-foreground">Belum ada data hutang.</p>
           )}
         </div>}
+
+        {/* ── Goal Tab ─────────────────────────────────────────── */}
+        {activeTab === "goal" && <GoalTab currentNetWorth={netValue} />}
 
       {/* ── Dialog Tambah Aset ──────────────────────────────────── */}
       <Dialog open={assetDialogOpen} onOpenChange={setAssetDialogOpen}>

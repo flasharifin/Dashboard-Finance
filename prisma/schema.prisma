@@ -228,9 +228,13 @@ model SaleTransaction {
 }
 
 model UserSetting {
-  id           String  @id @default(cuid())
-  userId       String  @unique
-  wealthTarget Decimal @default(100000000) @db.Decimal(15, 2)
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  wealthTarget       Decimal   @default(100000000) @db.Decimal(15, 2)
+  goalName           String?
+  goalDeadline       DateTime?
+  goalReturnPct      Decimal?  @default(12) @db.Decimal(5, 2)
+  goalMonthlyContrib Decimal?  @db.Decimal(15, 2)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
