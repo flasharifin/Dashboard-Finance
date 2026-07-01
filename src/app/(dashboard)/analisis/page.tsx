@@ -400,7 +400,7 @@ function KorelasiTab({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">
+          <CardTitle className="text-sm">
             Matriks Korelasi — 30 hari terakhir
           </CardTitle>
         </CardHeader>
@@ -570,7 +570,7 @@ function StressTestTab({
       {/* Drop % per exchange */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm text-muted-foreground">
+          <CardTitle className="text-sm">
             Asumsi Penurunan per Exchange
           </CardTitle>
         </CardHeader>
@@ -578,7 +578,7 @@ function StressTestTab({
           <div className="grid grid-cols-3 gap-3">
             {(["IDX", "US", "CRYPTO"] as const).map((ex) => (
               <div key={ex}>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                <label className="text-xs font-semibold text-foreground block mb-1.5">
                   {ex}
                 </label>
                 <div className="relative">
