@@ -389,8 +389,8 @@ export default function DashboardPage() {
                   labelStyle={{ fontWeight: 600 }}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                <Line dataKey="Porto" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Nilai Porto" />
-                <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Net Worth" />
+                <Line dataKey="Porto" stroke="#f97316" strokeWidth={2} dot={false} name="Nilai Porto" />
+                <Line dataKey="Net Worth" stroke="#3b82f6" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="Net Worth" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
