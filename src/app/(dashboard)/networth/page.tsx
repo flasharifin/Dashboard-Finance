@@ -207,12 +207,15 @@ export default function NetWorthPage() {
   const hasIhsg = (snapshots as Snapshot[]).some((s) => s.benchmarkIhsg != null);
   const hasSp500 = (snapshots as Snapshot[]).some((s) => s.benchmarkSp500 != null);
 
-  // Normalize benchmarks to first net worth value (only when first net worth is positive)
-  const firstIhsg = (snapshots as Snapshot[]).find((s) => s.benchmarkIhsg != null)?.benchmarkIhsg;
+  const firstIhsg  = (snapshots as Snapshot[]).find((s) => s.benchmarkIhsg  != null)?.benchmarkIhsg;
   const firstSp500 = (snapshots as Snapshot[]).find((s) => s.benchmarkSp500 != null)?.benchmarkSp500;
-  const firstNetWorth = snapshots.length > 0 ? Number((snapshots as Snapshot[])[0].netValue) : 1;
-  // Benchmark hanya ditampilkan bila net worth awal positif — normalisasi tidak valid untuk nilai negatif
-  const canShowBenchmark = firstNetWorth > 0;
+
+  // Pilih baseline benchmark: net worth → portfolio → total aset (prioritas nilai positif)
+  const firstSnap     = snapshots.length > 0 ? (snapshots as Snapshot[])[0] : null;
+  const firstNW       = firstSnap ? Number(firstSnap.netValue)           : 0;
+  const firstPorto    = firstSnap ? Number(firstSnap.portfolioValue ?? 0) : 0;
+  const firstAssets   = firstSnap ? Number(firstSnap.totalAssets)         : 0;
+  const benchmarkBase = firstNW > 0 ? firstNW : firstPorto > 0 ? firstPorto : firstAssets > 0 ? firstAssets : null;
 
   const chartData = (snapshots as Snapshot[]).map((s) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
@@ -220,11 +223,11 @@ export default function NetWorthPage() {
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
     ...(s.portfolioValue != null ? { Porto: Number(s.portfolioValue) } : {}),
-    ...(canShowBenchmark && hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
-      ? { IHSG: (Number(s.benchmarkIhsg) / Number(firstIhsg)) * firstNetWorth }
+    ...(benchmarkBase && hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
+      ? { IHSG: (Number(s.benchmarkIhsg) / Number(firstIhsg)) * benchmarkBase }
       : {}),
-    ...(canShowBenchmark && hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
-      ? { SP500: (Number(s.benchmarkSp500) / Number(firstSp500)) * firstNetWorth }
+    ...(benchmarkBase && hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
+      ? { SP500: (Number(s.benchmarkSp500) / Number(firstSp500)) * benchmarkBase }
       : {}),
   }));
 
@@ -323,10 +326,10 @@ export default function NetWorthPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted border-b">
-                      <th className="text-left px-3 py-2 font-semibold text-foreground">Tanggal</th>
-                      <th className="text-right px-3 py-2 font-semibold text-foreground hidden sm:table-cell">Total Aset</th>
-                      <th className="text-right px-3 py-2 font-semibold text-foreground hidden sm:table-cell">Hutang</th>
-                      <th className="text-right px-3 py-2 font-semibold text-foreground">Net Worth</th>
+                      <th className="text-left px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">Tanggal</th>
+                      <th className="text-right px-3 py-2 font-semibold text-slate-900 dark:text-slate-100 hidden sm:table-cell">Total Aset</th>
+                      <th className="text-right px-3 py-2 font-semibold text-slate-900 dark:text-slate-100 hidden sm:table-cell">Hutang</th>
+                      <th className="text-right px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">Net Worth</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
@@ -335,19 +338,19 @@ export default function NetWorthPage() {
                       const nw = Number(s.netValue);
                       return (
                         <tr key={s.id} className="hover:bg-muted/40 transition-colors">
-                          <td className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-slate-900 dark:text-slate-100 font-semibold whitespace-nowrap">
                             {format(new Date(s.snapshotDate), "dd MMM yyyy", { locale: idLocale })}
-                            <span className="block text-xs text-muted-foreground">
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">
                               {format(new Date(s.snapshotDate), "HH:mm")}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-right text-foreground hidden sm:table-cell">
+                          <td className="px-3 py-2.5 text-right text-slate-700 dark:text-slate-300 hidden sm:table-cell">
                             {formatCurrency(Number(s.totalAssets))}
                           </td>
-                          <td className="px-3 py-2.5 text-right text-red-600 hidden sm:table-cell">
+                          <td className="px-3 py-2.5 text-right text-red-600 dark:text-red-400 hidden sm:table-cell">
                             {formatCurrency(Number(s.totalLiabilities))}
                           </td>
-                          <td className={cn("px-3 py-2.5 text-right font-bold", nw >= 0 ? "text-primary" : "text-red-600")}>
+                          <td className={cn("px-3 py-2.5 text-right font-bold", nw >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>
                             {formatCurrency(nw)}
                           </td>
                           <td className="px-2 py-2.5">
