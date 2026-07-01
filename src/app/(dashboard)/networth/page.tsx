@@ -319,7 +319,7 @@ export default function NetWorthPage() {
                       : value
                     }
                   />
-                  <Line dataKey="Net Worth" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  <Line dataKey="Net Worth" stroke="#6366f1" strokeWidth={2} dot={false} />
                   <Line dataKey="Aset" stroke="#10b981" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   <Line dataKey="Hutang" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
                   {showPortoLine && <Line dataKey="Porto" stroke="#8b5cf6" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
@@ -347,7 +347,7 @@ export default function NetWorthPage() {
                       const nw = Number(s.netValue);
                       return (
                         <tr key={s.id} className="hover:bg-muted/40 transition-colors">
-                          <td className="px-3 py-2.5 text-black font-semibold whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-zinc-900 dark:text-white font-semibold whitespace-nowrap">
                             {format(new Date(s.snapshotDate), "dd MMM yyyy", { locale: idLocale })}
                             <span className="block text-xs text-slate-500 dark:text-slate-400">
                               {format(new Date(s.snapshotDate), "HH:mm")}
@@ -359,7 +359,7 @@ export default function NetWorthPage() {
                           <td className="px-3 py-2.5 text-right text-red-600 dark:text-red-400 hidden sm:table-cell">
                             {formatCurrency(Number(s.totalLiabilities))}
                           </td>
-                          <td className="px-3 py-2.5 text-right font-bold text-black">
+                          <td className="px-3 py-2.5 text-right font-bold text-zinc-900 dark:text-white">
                             {formatCurrency(nw)}
                           </td>
                           <td className="px-2 py-2.5">
