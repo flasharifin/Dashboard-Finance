@@ -648,65 +648,74 @@ function StressTestTab({
       })()}
 
       {/* Per-asset table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted">
-                  <th className="text-left px-4 py-3 font-medium text-foreground">Aset</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground">Nilai Kini</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground">Turun</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground">Nilai Setelah</th>
-                  <th className="text-right px-4 py-3 font-medium text-foreground">Dampak (IDR)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results
-                  .slice()
-                  .sort((a, b) => a.deltaIDR - b.deltaIDR)
-                  .map((r) => {
-                    const dropPct = drops[r.exchange as keyof typeof drops];
-                    return (
-                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{r.stockCode}</span>
-                            <Badge
-                              variant="outline"
-                              className={cn("text-xs px-1.5 py-0", EXCHANGE_BADGE[r.exchange])}
-                            >
-                              {r.exchange}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(r.valIDR)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-red-600">
-                          {dropPct}%
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(r.newValIDR)}</td>
-                        <td className={cn("px-4 py-3 text-right tabular-nums font-medium", r.deltaIDR < 0 ? "text-red-600" : "text-emerald-600")}>
-                          {r.deltaIDR >= 0 ? "+" : ""}{formatCurrency(r.deltaIDR)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t bg-muted">
-                  <td className="px-4 py-3 font-semibold" colSpan={3}>Total</td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                    {formatCurrency(totalAfter)}
-                  </td>
-                  <td className={cn("px-4 py-3 text-right font-bold tabular-nums", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
-                    {totalDelta >= 0 ? "+" : ""}{formatCurrency(totalDelta)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {(() => {
+        const isLoss = totalDelta < 0;
+        const headBg  = isLoss ? "bg-red-100"      : "bg-emerald-100";
+        const headTxt = isLoss ? "text-red-900"     : "text-emerald-900";
+        const footBg  = isLoss ? "bg-red-50"        : "bg-emerald-50";
+        const hoverBg = isLoss ? "hover:bg-red-50/60" : "hover:bg-emerald-50/60";
+        return (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead>
+                    <tr className={cn("border-b", headBg)}>
+                      <th className={cn("text-left px-4 py-3 font-semibold", headTxt)}>Aset</th>
+                      <th className={cn("text-right px-4 py-3 font-semibold", headTxt)}>Nilai Kini</th>
+                      <th className={cn("text-right px-4 py-3 font-semibold", headTxt)}>Turun</th>
+                      <th className={cn("text-right px-4 py-3 font-semibold", headTxt)}>Nilai Setelah</th>
+                      <th className={cn("text-right px-4 py-3 font-semibold", headTxt)}>Dampak (IDR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results
+                      .slice()
+                      .sort((a, b) => a.deltaIDR - b.deltaIDR)
+                      .map((r) => {
+                        const dropPct = drops[r.exchange as keyof typeof drops];
+                        return (
+                          <tr key={r.id} className={cn("border-b last:border-0 transition-colors", hoverBg)}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{r.stockCode}</span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-xs px-1.5 py-0", EXCHANGE_BADGE[r.exchange])}
+                                >
+                                  {r.exchange}
+                                </Badge>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(r.valIDR)}</td>
+                            <td className="px-4 py-3 text-right tabular-nums text-red-600 font-medium">
+                              {dropPct}%
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(r.newValIDR)}</td>
+                            <td className={cn("px-4 py-3 text-right tabular-nums font-semibold", r.deltaIDR < 0 ? "text-red-600" : "text-emerald-600")}>
+                              {r.deltaIDR >= 0 ? "+" : ""}{formatCurrency(r.deltaIDR)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                  <tfoot>
+                    <tr className={cn("border-t", footBg)}>
+                      <td className={cn("px-4 py-3 font-bold", headTxt)} colSpan={3}>Total</td>
+                      <td className={cn("px-4 py-3 text-right font-bold tabular-nums", headTxt)}>
+                        {formatCurrency(totalAfter)}
+                      </td>
+                      <td className={cn("px-4 py-3 text-right font-bold tabular-nums", isLoss ? "text-red-700" : "text-emerald-700")}>
+                        {totalDelta >= 0 ? "+" : ""}{formatCurrency(totalDelta)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
