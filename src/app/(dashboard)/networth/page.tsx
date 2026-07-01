@@ -207,10 +207,12 @@ export default function NetWorthPage() {
   const hasIhsg = (snapshots as Snapshot[]).some((s) => s.benchmarkIhsg != null);
   const hasSp500 = (snapshots as Snapshot[]).some((s) => s.benchmarkSp500 != null);
 
-  // Normalize benchmarks to index 100 at first snapshot
+  // Normalize benchmarks to first net worth value (only when first net worth is positive)
   const firstIhsg = (snapshots as Snapshot[]).find((s) => s.benchmarkIhsg != null)?.benchmarkIhsg;
   const firstSp500 = (snapshots as Snapshot[]).find((s) => s.benchmarkSp500 != null)?.benchmarkSp500;
   const firstNetWorth = snapshots.length > 0 ? Number((snapshots as Snapshot[])[0].netValue) : 1;
+  // Benchmark hanya ditampilkan bila net worth awal positif — normalisasi tidak valid untuk nilai negatif
+  const canShowBenchmark = firstNetWorth > 0;
 
   const chartData = (snapshots as Snapshot[]).map((s) => ({
     date: format(new Date(s.snapshotDate), "MMM yy", { locale: idLocale }),
@@ -218,10 +220,10 @@ export default function NetWorthPage() {
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
     ...(s.portfolioValue != null ? { Porto: Number(s.portfolioValue) } : {}),
-    ...(hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
+    ...(canShowBenchmark && hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
       ? { IHSG: (Number(s.benchmarkIhsg) / Number(firstIhsg)) * firstNetWorth }
       : {}),
-    ...(hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
+    ...(canShowBenchmark && hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
       ? { SP500: (Number(s.benchmarkSp500) / Number(firstSp500)) * firstNetWorth }
       : {}),
   }));
@@ -317,31 +319,51 @@ export default function NetWorthPage() {
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Riwayat Snapshot</p>
-              <div className="divide-y rounded-md border">
-                {[...(snapshots as Snapshot[])].reverse().map((s) => (
-                  <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <div className="min-w-0">
-                      <span className="font-medium">
-                        {format(new Date(s.snapshotDate), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                      </span>
-                      <span className="ml-3 text-muted-foreground hidden sm:inline">
-                        Aset {formatCurrency(Number(s.totalAssets))} · Hutang {formatCurrency(Number(s.totalLiabilities))}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={cn("font-semibold", Number(s.netValue) >= 0 ? "text-primary" : "text-red-600")}>
-                        {formatCurrency(Number(s.netValue))}
-                      </span>
-                      <Button
-                        size="icon" variant="ghost"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => { if (confirm("Hapus snapshot ini?")) deleteSnapshotMutation.mutate(s.id); }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted border-b">
+                      <th className="text-left px-3 py-2 font-semibold text-foreground">Tanggal</th>
+                      <th className="text-right px-3 py-2 font-semibold text-foreground hidden sm:table-cell">Total Aset</th>
+                      <th className="text-right px-3 py-2 font-semibold text-foreground hidden sm:table-cell">Hutang</th>
+                      <th className="text-right px-3 py-2 font-semibold text-foreground">Net Worth</th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {[...(snapshots as Snapshot[])].reverse().map((s) => {
+                      const nw = Number(s.netValue);
+                      return (
+                        <tr key={s.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
+                            {format(new Date(s.snapshotDate), "dd MMM yyyy", { locale: idLocale })}
+                            <span className="block text-xs text-muted-foreground">
+                              {format(new Date(s.snapshotDate), "HH:mm")}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-foreground hidden sm:table-cell">
+                            {formatCurrency(Number(s.totalAssets))}
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-red-600 hidden sm:table-cell">
+                            {formatCurrency(Number(s.totalLiabilities))}
+                          </td>
+                          <td className={cn("px-3 py-2.5 text-right font-bold", nw >= 0 ? "text-primary" : "text-red-600")}>
+                            {formatCurrency(nw)}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => { if (confirm("Hapus snapshot ini?")) deleteSnapshotMutation.mutate(s.id); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </CardContent>

@@ -32,12 +32,13 @@ function requiredPMT(pv: number, fv: number, r: number, n: number): number {
 function monthsToTarget(pv: number, fv: number, r: number, pmt: number): number | null {
   if (pv >= fv) return 0;
   if (pmt <= 0 && r < 1e-10) return null;
-  if (r < 1e-10) return pmt > 0 ? Math.ceil((fv - pv) / pmt) : null;
-  const pmtOverR = pmt / r;
-  const num = fv - pmtOverR;
-  const den = pv - pmtOverR;
-  if (den <= 0 || num <= 0 || num / den <= 0) return null;
-  return Math.ceil(Math.log(num / den) / Math.log(1 + r));
+  // Simulasi bulan per bulan — akurat untuk semua kombinasi nilai, max 100 tahun
+  let v = pv;
+  for (let m = 1; m <= 1200; m++) {
+    v = v * (1 + r) + pmt;
+    if (v >= fv) return m;
+  }
+  return null;
 }
 
 function buildProjection(
