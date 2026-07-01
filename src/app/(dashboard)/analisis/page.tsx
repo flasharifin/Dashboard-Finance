@@ -259,12 +259,12 @@ function RisikoTab({ stats, isLoading }: { stats: RiskStats[]; isLoading: boolea
           <div className="overflow-x-auto">
             <table className="w-full min-w-[580px] text-sm">
               <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Aset</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Bobot</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Volatilitas/yr</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Max Drawdown</th>
-                  <th className="text-center px-4 py-3 font-medium text-muted-foreground">Level Risiko</th>
+                <tr className="border-b bg-muted">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">Aset</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Bobot</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Volatilitas/yr</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Max Drawdown</th>
+                  <th className="text-center px-4 py-3 font-medium text-foreground">Level Risiko</th>
                 </tr>
               </thead>
               <tbody>
@@ -611,22 +611,22 @@ function StressTestTab({
       </Card>
 
       {/* Impact summary */}
-      <Card className={cn("border-2", totalDelta < 0 ? "border-red-200 bg-red-50/50" : "border-emerald-200 bg-emerald-50/50")}>
+      <Card className={cn("border-2", totalDelta < 0 ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50")}>
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
             <div className="flex-1">
-              <p className="text-xs text-muted-foreground">Nilai Portfolio Saat Ini</p>
+              <p className="text-xs font-medium text-foreground/70">Nilai Portfolio Saat Ini</p>
               <p className="text-xl font-bold mt-0.5">{formatCurrency(totalBefore)}</p>
             </div>
-            <div className="text-muted-foreground hidden sm:block text-xl">→</div>
+            <div className="text-foreground/40 hidden sm:block text-xl">→</div>
             <div className="flex-1">
-              <p className="text-xs text-muted-foreground">Nilai Setelah Skenario</p>
+              <p className="text-xs font-medium text-foreground/70">Nilai Setelah Skenario</p>
               <p className={cn("text-xl font-bold mt-0.5", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
                 {formatCurrency(totalAfter)}
               </p>
             </div>
             <div className="border-t sm:border-t-0 sm:border-l pt-3 sm:pt-0 sm:pl-6">
-              <p className="text-xs text-muted-foreground">Estimasi Dampak</p>
+              <p className="text-xs font-medium text-foreground/70">Estimasi Dampak</p>
               <p className={cn("text-2xl font-bold mt-0.5", totalDelta < 0 ? "text-red-600" : "text-emerald-600")}>
                 {totalDelta >= 0 ? "+" : ""}{formatCurrency(totalDelta)}
               </p>
@@ -644,12 +644,12 @@ function StressTestTab({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Aset</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Nilai Kini</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Turun</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Nilai Setelah</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">Dampak (IDR)</th>
+                <tr className="border-b bg-muted">
+                  <th className="text-left px-4 py-3 font-medium text-foreground">Aset</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Nilai Kini</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Turun</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Nilai Setelah</th>
+                  <th className="text-right px-4 py-3 font-medium text-foreground">Dampak (IDR)</th>
                 </tr>
               </thead>
               <tbody>
@@ -684,7 +684,7 @@ function StressTestTab({
                   })}
               </tbody>
               <tfoot>
-                <tr className="border-t bg-muted/30">
+                <tr className="border-t bg-muted">
                   <td className="px-4 py-3 font-semibold" colSpan={3}>Total</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">
                     {formatCurrency(totalAfter)}
