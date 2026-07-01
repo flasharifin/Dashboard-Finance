@@ -223,13 +223,13 @@ export default function NetWorthPage() {
     "Net Worth": Number(s.netValue),
     Aset: Number(s.totalAssets),
     Hutang: Number(s.totalLiabilities),
-    ...(s.portfolioValue != null ? { Porto: Number(s.portfolioValue) } : {}),
-    ...(benchmarkBase && hasIhsg && s.benchmarkIhsg != null && firstIhsg != null
-      ? { IHSG: (Number(s.benchmarkIhsg) / Number(firstIhsg)) * benchmarkBase }
-      : {}),
-    ...(benchmarkBase && hasSp500 && s.benchmarkSp500 != null && firstSp500 != null
-      ? { SP500: (Number(s.benchmarkSp500) / Number(firstSp500)) * benchmarkBase }
-      : {}),
+    Porto: s.portfolioValue != null ? Number(s.portfolioValue) : null,
+    IHSG: (benchmarkBase && s.benchmarkIhsg != null && firstIhsg != null)
+      ? (Number(s.benchmarkIhsg) / Number(firstIhsg)) * benchmarkBase
+      : null,
+    SP500: (benchmarkBase && s.benchmarkSp500 != null && firstSp500 != null)
+      ? (Number(s.benchmarkSp500) / Number(firstSp500)) * benchmarkBase
+      : null,
   }));
 
   return (
