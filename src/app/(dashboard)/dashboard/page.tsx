@@ -213,7 +213,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Daily P&L */}
-      <Link href="/daily-log">
+      <Link href="/daily-log" title="Lihat log harian detail">
         <Card className="transition-shadow hover:shadow-md cursor-pointer">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
