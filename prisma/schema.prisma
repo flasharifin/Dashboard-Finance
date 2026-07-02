@@ -28,6 +28,8 @@ model User {
   netWorthSnapshots NetWorthSnapshot[]
   userSetting       UserSetting?
   saleTransactions  SaleTransaction[]
+  dailyPnl          DailyPnl[]
+  monthlyPnl        MonthlyPnl[]
 }
 
 model Account {
@@ -237,6 +239,38 @@ model UserSetting {
   goalMonthlyContrib Decimal?  @db.Decimal(15, 2)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DailyPnl {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  portfolioValue Decimal  @db.Decimal(15, 2)
+  pnl            Decimal  @db.Decimal(15, 2)
+  pnlPct         Decimal  @db.Decimal(8, 4)
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model MonthlyPnl {
+  id             String   @id @default(cuid())
+  userId         String
+  month          DateTime @db.Date
+  openValue      Decimal  @db.Decimal(15, 2)
+  closeValue     Decimal  @db.Decimal(15, 2)
+  totalPnl       Decimal  @db.Decimal(15, 2)
+  pnlPct         Decimal  @db.Decimal(8, 4)
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([userId])
 }
 
 model MarketPrice {
