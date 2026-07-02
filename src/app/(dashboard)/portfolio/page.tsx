@@ -33,8 +33,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Plus, Download, TrendingDown, TrendingUp, LayoutList, History, Trash2, ArrowUpDown,
+  Plus, Download, TrendingDown, TrendingUp, LayoutList, History, Trash2, ArrowUpDown, BarChart2,
 } from "lucide-react";
+import { PnlTab } from "@/components/features/portfolio/pnl-tab";
 import type { PortfolioWithCalc, Exchange, Currency, SaleTransaction } from "@/types";
 import {
   calcAvgPrice, calcUnits, formatCurrency, formatPercent,
@@ -48,7 +49,7 @@ const EXCHANGE_OPTIONS: { value: Exchange; label: string; currency: Currency; hi
   { value: "CRYPTO", label: "Crypto",                 currency: "USD", hint: "Contoh: BTC, ETH, SOL" },
 ];
 
-type ActiveTab = "active" | "history";
+type ActiveTab = "active" | "history" | "pnl";
 
 export default function PortfolioPage() {
   const { data: portfolios = [], isLoading } = usePortfolio();
@@ -221,9 +222,10 @@ export default function PortfolioPage() {
     ? portfolios
     : portfolios.filter((p: PortfolioWithCalc) => p.exchange === filterExchange);
 
-  const TABS: { id: ActiveTab; label: string; count: number; icon: React.ReactNode }[] = [
+  const TABS: { id: ActiveTab; label: string; count: number | null; icon: React.ReactNode }[] = [
     { id: "active",  label: "Posisi Aktif", count: portfolios.length, icon: <LayoutList className="h-4 w-4" /> },
     { id: "history", label: "Histori Jual", count: sales.length,      icon: <History className="h-4 w-4" /> },
+    { id: "pnl",     label: "PnL Harian",  count: null,               icon: <BarChart2 className="h-4 w-4" /> },
   ];
 
   return (
@@ -283,14 +285,14 @@ export default function PortfolioPage() {
               >
                 {tab.icon}
                 {tab.label}
-                <span className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-                )}>
-                  {tab.count}
-                </span>
+                {tab.count != null && (
+                  <span className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none",
+                    active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  )}>
+                    {tab.count}
+                  </span>
+                )}
                 {active && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary" />
                 )}
@@ -684,6 +686,9 @@ export default function PortfolioPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── PnL Harian ───────────────────────────────────────────── */}
+      {activeTab === "pnl" && <PnlTab />}
 
       {/* ── Dialog Jual ─────────────────────────────────────────── */}
       <Dialog open={sellDialogOpen} onOpenChange={setSellDialogOpen}>
