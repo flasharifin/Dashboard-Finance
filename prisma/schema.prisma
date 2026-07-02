@@ -8,28 +8,27 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
+  id                String             @id @default(cuid())
+  name              String?
+  email             String             @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   accounts          Account[]
-  sessions          Session[]
-  portfolios        Portfolio[]
-  dividends         Dividend[]
+  assets            Asset[]
+  dailyPnl          DailyPnl[]
   dcaPlans          DcaPlan[]
   dcaTransactions   DcaTransaction[]
-  assets            Asset[]
+  dividends         Dividend[]
   liabilities       Liability[]
-  netWorthSnapshots NetWorthSnapshot[]
-  userSetting       UserSetting?
-  saleTransactions  SaleTransaction[]
-  dailyPnl          DailyPnl[]
   monthlyPnl        MonthlyPnl[]
+  netWorthSnapshots NetWorthSnapshot[]
+  portfolios        Portfolio[]
+  saleTransactions  SaleTransaction[]
+  sessions          Session[]
+  userSetting       UserSetting?
 }
 
 model Account {
@@ -46,8 +45,7 @@ model Account {
   session_state     String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([provider, providerAccountId])
 }
@@ -58,8 +56,7 @@ model Session {
   expires      DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -71,24 +68,23 @@ model VerificationToken {
 }
 
 model Portfolio {
-  id        String   @id @default(cuid())
-  userId    String
-  stockCode String
-  lot       Decimal  @db.Decimal(15, 8)
-  avgPrice  Decimal  @db.Decimal(15, 8)
-  exchange  String   @default("IDX")
-  currency  String   @default("IDR")
-  platform  String   @default("")
-  sector       String?
-  note         String?
-  purchaseDate DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dividends       Dividend[]
+  id              String           @id @default(cuid())
+  userId          String
+  stockCode       String
+  lot             Decimal          @db.Decimal(15, 8)
+  avgPrice        Decimal          @db.Decimal(15, 8)
+  sector          String?
+  note            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  currency        String           @default("IDR")
+  exchange        String           @default("IDX")
+  platform        String           @default("")
+  purchaseDate    DateTime?
   dcaPlans        DcaPlan[]
   dcaTransactions DcaTransaction[]
+  dividends       Dividend[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, stockCode, platform])
   @@index([userId])
@@ -108,9 +104,8 @@ model Dividend {
   note           String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  portfolio      Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([portfolioId])
@@ -118,42 +113,40 @@ model Dividend {
 }
 
 model DcaPlan {
-  id          String    @id @default(cuid())
-  userId      String
-  portfolioId String
-  stockCode   String
-  targetPrice Decimal   @db.Decimal(15, 2)
-  budget      Decimal   @db.Decimal(15, 2)
-  frequency   String    @default("monthly")
-  nextDate    DateTime?
-  isActive    Boolean   @default(true)
-  note        String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String           @id @default(cuid())
+  userId          String
+  portfolioId     String
+  stockCode       String
+  targetPrice     Decimal          @db.Decimal(15, 2)
+  budget          Decimal          @db.Decimal(15, 2)
+  frequency       String           @default("monthly")
+  nextDate        DateTime?
+  isActive        Boolean          @default(true)
+  note            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   portfolio       Portfolio        @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   dcaTransactions DcaTransaction[]
 
   @@index([userId])
 }
 
 model DcaTransaction {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   portfolioId String
   dcaPlanId   String?
   stockCode   String
-  lot         Decimal  @db.Decimal(15, 8)
-  price       Decimal  @db.Decimal(15, 2)
-  totalCost   Decimal  @db.Decimal(15, 2)
-  buyDate     DateTime @default(now())
+  lot         Decimal   @db.Decimal(15, 8)
+  price       Decimal   @db.Decimal(15, 2)
+  totalCost   Decimal   @db.Decimal(15, 2)
+  buyDate     DateTime  @default(now())
   note        String?
-  createdAt   DateTime @default(now())
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  dcaPlan   DcaPlan?  @relation(fields: [dcaPlanId], references: [id])
+  createdAt   DateTime  @default(now())
+  dcaPlan     DcaPlan?  @relation(fields: [dcaPlanId], references: [id])
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([portfolioId])
@@ -168,8 +161,7 @@ model Asset {
   note      String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -183,8 +175,7 @@ model Liability {
   note      String?
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -195,12 +186,11 @@ model NetWorthSnapshot {
   totalAssets      Decimal  @db.Decimal(15, 2)
   totalLiabilities Decimal  @db.Decimal(15, 2)
   netValue         Decimal  @db.Decimal(15, 2)
+  snapshotDate     DateTime @default(now())
   portfolioValue   Decimal? @db.Decimal(15, 2)
   benchmarkIhsg    Decimal? @db.Decimal(15, 2)
   benchmarkSp500   Decimal? @db.Decimal(15, 2)
-  snapshotDate     DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([snapshotDate])
@@ -222,8 +212,7 @@ model SaleTransaction {
   saleDate      DateTime @default(now())
   note          String?
   createdAt     DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([saleDate])
@@ -233,12 +222,11 @@ model UserSetting {
   id                 String    @id @default(cuid())
   userId             String    @unique
   wealthTarget       Decimal   @default(100000000) @db.Decimal(15, 2)
-  goalName           String?
   goalDeadline       DateTime?
-  goalReturnPct      Decimal?  @default(12) @db.Decimal(5, 2)
   goalMonthlyContrib Decimal?  @db.Decimal(15, 2)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalName           String?
+  goalReturnPct      Decimal?  @default(12) @db.Decimal(5, 2)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model DailyPnl {
@@ -249,8 +237,7 @@ model DailyPnl {
   pnl            Decimal  @db.Decimal(15, 2)
   pnlPct         Decimal  @db.Decimal(8, 4)
   createdAt      DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId])
@@ -258,16 +245,15 @@ model DailyPnl {
 }
 
 model MonthlyPnl {
-  id             String   @id @default(cuid())
-  userId         String
-  month          DateTime @db.Date
-  openValue      Decimal  @db.Decimal(15, 2)
-  closeValue     Decimal  @db.Decimal(15, 2)
-  totalPnl       Decimal  @db.Decimal(15, 2)
-  pnlPct         Decimal  @db.Decimal(8, 4)
-  createdAt      DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String
+  month      DateTime @db.Date
+  openValue  Decimal  @db.Decimal(15, 2)
+  closeValue Decimal  @db.Decimal(15, 2)
+  totalPnl   Decimal  @db.Decimal(15, 2)
+  pnlPct     Decimal  @db.Decimal(8, 4)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month])
   @@index([userId])
