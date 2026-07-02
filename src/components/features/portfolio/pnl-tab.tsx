@@ -30,11 +30,25 @@ export function PnlTab() {
   const { data: monthly = [], isLoading: monthlyLoading } = useMonthlyPnl();
 
   // Summary: PnL bulan ini dari daily records
-  const thisMonthPnl  = daily.reduce((s, d) => s + Number(d.pnl), 0);
-  const thisMonthPct  = daily.length > 0
+  const thisMonthPnl = daily.reduce((s, d) => s + Number(d.pnl), 0);
+  const thisMonthPct = daily.length > 0
     ? (Number(daily[daily.length - 1].portfolioValue) - Number(daily[0].portfolioValue)) /
       Math.abs(Number(daily[0].portfolioValue)) * 100
     : 0;
+
+  // Max drawdown 30 hari: penurunan terbesar dari puncak ke lembah
+  const maxDrawdown = (() => {
+    if (daily.length < 2) return null;
+    let peak = Number(daily[0].portfolioValue);
+    let maxDD = 0;
+    for (const d of daily) {
+      const val = Number(d.portfolioValue);
+      if (val > peak) peak = val;
+      const dd = peak > 0 ? ((val - peak) / peak) * 100 : 0;
+      if (dd < maxDD) maxDD = dd;
+    }
+    return maxDD;
+  })();
 
   const dailyChart = daily.map((d) => ({
     date: format(new Date(d.date), "dd/MM", { locale: idLocale }),
@@ -101,9 +115,44 @@ export function PnlTab() {
               <p className="text-2xl font-bold text-foreground">
                 {formatCurrency(Number(daily[daily.length - 1]?.portfolioValue ?? 0))}
               </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                per 00:00 WIB · bukan harga real-time
+              </p>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Max Drawdown card — baris kedua */}
+      {maxDrawdown !== null && (
+        <Card className="border-orange-200 dark:border-orange-900">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              Max Drawdown 30 Hari
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-4">
+              <div>
+                <p className={cn(
+                  "text-3xl font-bold",
+                  maxDrawdown < -20 ? "text-red-600" : maxDrawdown < -10 ? "text-orange-500" : "text-yellow-600"
+                )}>
+                  {maxDrawdown.toFixed(2)}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  penurunan terbesar dari puncak ke lembah dalam 30 hari terakhir
+                </p>
+              </div>
+              <div className="ml-auto text-right text-xs text-muted-foreground">
+                {maxDrawdown >= -5  && <span className="text-emerald-600 font-medium">Risiko Rendah</span>}
+                {maxDrawdown < -5  && maxDrawdown >= -15 && <span className="text-yellow-600 font-medium">Risiko Sedang</span>}
+                {maxDrawdown < -15 && maxDrawdown >= -25 && <span className="text-orange-500 font-medium">Risiko Tinggi</span>}
+                {maxDrawdown < -25 && <span className="text-red-600 font-medium">Risiko Sangat Tinggi</span>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Daily bar chart */}
